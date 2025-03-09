@@ -4,16 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-//@Setter
-//@Getter
-//@AllArgsConstructor
-//public class RequestForCrackFromClient {
-//    public String hash;
-//    public Integer maxLength;
-//}
-
-
-public record RequestForCrackFromClient (
-    String hash,
-    Integer maxLength
-) {}
+@Setter
+@Getter
+@AllArgsConstructor
+public class RequestForCrackFromClient {
+    public String hash;
+    public Integer maxLength;
+}

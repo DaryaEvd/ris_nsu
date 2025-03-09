@@ -1,0 +1,52 @@
+package ru.nsu.fit.evdokimova.manager.service;
+
+import org.springframework.stereotype.Service;
+import ru.nsu.fit.evdokimova.manager.model.TaskData;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static ru.nsu.fit.evdokimova.manager.config.Constants.ALPHABET;
+
+@Service
+public class TaskDistributorService {
+
+    public int calculateTotalPermutations(int maxLength) {
+        int total = 0;
+        int lengthAlphabet = ALPHABET.length();
+        for (int i = 1; i <= maxLength; i++) {
+            total += (int) Math.pow(lengthAlphabet, i);
+        }
+        return total;
+    }
+
+    public int determinePartCount(int totalPermutations) {
+        int cpuCores = Runtime.getRuntime().availableProcessors();
+        int estimatedWorkers = Math.max(2, cpuCores / 2);
+
+        int optimalParts = Math.min(totalPermutations, Math.max(estimatedWorkers, totalPermutations / 10_000));
+
+        return Math.max(1, optimalParts);
+    }
+
+    public List<TaskData> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partCount) {
+        List<TaskData> tasks = new ArrayList<>();
+
+        int chunkSize = totalPermutations / partCount;
+        int remainder = totalPermutations % partCount;
+
+        int currentStart = 0;
+        for (int i = 0; i < partCount; i++) {
+            int currentEnd = currentStart + chunkSize - 1;
+
+            if (i == partCount - 1) {
+                currentEnd += remainder;
+            }
+
+            tasks.add(new TaskData(requestId, hash, maxLength, partCount, i, currentStart, currentEnd));
+            currentStart = currentEnd + 1;
+        }
+
+        return tasks;
+    }
+}
