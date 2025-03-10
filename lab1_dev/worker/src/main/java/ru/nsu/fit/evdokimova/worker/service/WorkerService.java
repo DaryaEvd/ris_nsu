@@ -17,10 +17,9 @@ import java.util.stream.Collectors;
 public class WorkerService {
 
     private final RestTemplate restTemplate;
-    private static final String MANAGER_URL = "http://localhost:8081/internal/api/manager/hash/crack/request";
-    public static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+    private static final String MANAGER_URL = "http://manager:8080/internal/api/manager/hash/crack/request";
 
-    public void processTask(RequestFromManagerToWorker request) {
+    public void processTask(WorkerTaskRequest request) {
         List<String> foundWords = new ArrayList<>();
         String targetHash = request.getHash();
 
@@ -39,17 +38,13 @@ public class WorkerService {
     }
 
     private List<String> generateWords(int maxLength, int partNumber, int partCount) {
-        List<String> words = new ArrayList<>();
-
-        Generator.permutation(ALPHABET.split(""))
+        return Generator.permutation(ALPHABET.split(""))
                 .withRepetitions(maxLength)
                 .stream()
                 .skip(partNumber * (ALPHABET.length() / partCount))
                 .limit(ALPHABET.length() / partCount)
                 .map(list -> list.stream().collect(Collectors.joining()))
-                .forEach(words::add);
-
-        return words;
+                .toList();
     }
 
     private void sendResultToManager(String requestId, List<String> words) {

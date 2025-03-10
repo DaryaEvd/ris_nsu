@@ -8,7 +8,7 @@ import ru.nsu.fit.evdokimova.manager.model.StatusWork;
 import java.util.ArrayList;
 
 @Setter
-
+@Getter
 @AllArgsConstructor
 public class ResponseRequestIdToClient {
     StatusWork status;

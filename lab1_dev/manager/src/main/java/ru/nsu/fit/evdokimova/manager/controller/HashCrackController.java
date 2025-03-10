@@ -25,4 +25,10 @@ public class HashCrackController {
         ResponseRequestIdToClient response = managerService.getCrackStatus(requestId);
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/request")
+    public ResponseEntity<Void> receiveWorkerResponse(@RequestBody ManagerResponse response) {
+        managerService.processWorkerResponse(response);
+        return ResponseEntity.ok().build();
+    }
 }

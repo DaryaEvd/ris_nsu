@@ -18,8 +18,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Service
 @RequiredArgsConstructor
 public class CrackHashManagerService {
-
     private final TaskDistributorService taskDistributorService;
+    private final RestTemplate restTemplate;
+
+    private static final String WORKER_URL = "http://worker:8081/internal/api/worker/hash/crack/task";
 
     private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
     private final Queue<TaskData> taskQueue = new ConcurrentLinkedQueue<>();
@@ -33,6 +35,7 @@ public class CrackHashManagerService {
         List<TaskData> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
 
         taskQueue.addAll(tasks);
+        assignTasksToWorkers();
 
         return new ResponseForCrackToClient(requestId);
     }
@@ -43,6 +46,36 @@ public class CrackHashManagerService {
             return new ResponseRequestIdToClient(StatusWork.ERROR, null);
         }
         return new ResponseRequestIdToClient(requestData.getStatus(), (ArrayList<String>) requestData.getData());
+    }
+
+    private void assignTasksToWorkers() {
+        while (!taskQueue.isEmpty()) {
+            TaskData task = taskQueue.poll();
+            if (task != null) {
+                sendTaskToWorker(task);
+            }
+        }
+    }
+
+    private void sendTaskToWorker(TaskData task) {
+        try {
+            restTemplate.postForEntity(WORKER_URL, task, Void.class);
+        } catch (Exception e) {
+            System.err.println("Ошибка отправки задачи воркеру: " + e.getMessage());
+            taskQueue.add(task); // Если не удалось отправить, возвращаем задачу в очередь
+        }
+    }
+
+    public void processWorkerResponse(ResponseRequestIdToClient response) {
+        CrackRequestData requestData = requestStorage.get(response.getRequestId());
+        if (requestData == null) return;
+
+        requestData.getData().addAll(response.getData());
+
+        // Если все задачи обработаны, меняем статус
+        if (taskQueue.isEmpty()) {
+            requestData.setStatus(StatusWork.READY);
+        }
     }
 
     @Scheduled(fixedRate = 10000)

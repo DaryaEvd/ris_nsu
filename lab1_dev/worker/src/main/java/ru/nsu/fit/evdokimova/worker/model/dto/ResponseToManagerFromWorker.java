@@ -9,5 +9,5 @@ import java.util.List;
 @AllArgsConstructor
 public class ResponseToManagerFromWorker {
     private String requestId;
-    private List<String> words;
+    private List<String> data;
 }
