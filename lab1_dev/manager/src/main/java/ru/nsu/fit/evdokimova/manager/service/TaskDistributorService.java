@@ -1,5 +1,6 @@
 package ru.nsu.fit.evdokimova.manager.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 
@@ -8,6 +9,7 @@ import java.util.List;
 
 import static ru.nsu.fit.evdokimova.manager.config.Constants.ALPHABET;
 
+@RequiredArgsConstructor
 @Service
 public class TaskDistributorService {
 

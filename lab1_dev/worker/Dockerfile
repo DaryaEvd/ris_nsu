@@ -19,5 +19,5 @@ RUN gradle bootJar
 FROM eclipse-temurin:21-jdk-alpine
 ENV APP_HOME=/usr/app
 WORKDIR $APP_HOME
-COPY --from=build $APP_HOME/build/libs/manager-0.0.1-SNAPSHOT.jar manager.jar
-ENTRYPOINT ["java", "-jar", "manager.jar"]
+COPY --from=build $APP_HOME/build/libs/worker-0.0.1-SNAPSHOT.jar worker.jar
+ENTRYPOINT ["java", "-jar", "worker.jar"]

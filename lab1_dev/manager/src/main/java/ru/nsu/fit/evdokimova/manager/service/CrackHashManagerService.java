@@ -1,6 +1,8 @@
 package ru.nsu.fit.evdokimova.manager.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -22,15 +24,30 @@ public class CrackHashManagerService {
     private final TaskDistributorService taskDistributorService;
     private final RestTemplate restTemplate;
 
-    private static final String WORKER_URL = "http://worker:8081/internal/api/worker/hash/crack/task";
+    @Value("${worker.count}")
+    private int workerCount;
 
+    @Value("${worker.ports}")
+    private String workerPorts;
+
+    private List<String> workerUrls;
     private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
     private final Queue<RequestFromManagerToWorker> taskQueue = new ConcurrentLinkedQueue<>();
+
+    @PostConstruct
+    private void init() {
+        workerUrls = new ArrayList<>();
+        String[] ports = workerPorts.split(",");
+        for (String port : ports) {
+            workerUrls.add("http://worker:" + port + "/internal/api/worker/hash/crack/task");
+        }
+    }
+
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
         String requestId = UUID.randomUUID().toString();
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis()));
-
+        //todo: оптимизировать эту штуку
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
         int partCount = taskDistributorService.determinePartCount(totalPermutations);
         List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
@@ -40,6 +57,7 @@ public class CrackHashManagerService {
         return new ResponseForCrackToClient(requestId);
     }
 
+
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
         CrackRequestData requestData = requestStorage.get(requestId);
         if (requestData == null) {
@@ -48,19 +66,24 @@ public class CrackHashManagerService {
         return new ResponseRequestIdToClient(requestData.getStatus(), (ArrayList<String>) requestData.getData());
     }
 
-    @Scheduled(fixedRate = 5000) // Каждые 5 секунд
+
+    @Scheduled(fixedRate = 5000)
     private void assignTasksToWorkers() {
+        int workerIndex = 0;
         while (!taskQueue.isEmpty()) {
             RequestFromManagerToWorker task = taskQueue.poll();
             if (task != null) {
-                sendTaskToWorker(task);
+                String workerUrl = workerUrls.get(workerIndex);
+                sendTaskToWorker(task, workerUrl);
+                workerIndex = (workerIndex + 1) % workerUrls.size();  // Переключаемся на следующего воркера
             }
         }
     }
 
-    private void sendTaskToWorker(RequestFromManagerToWorker task) {
+
+    private void sendTaskToWorker(RequestFromManagerToWorker task, String workerUrl) {
         try {
-            restTemplate.postForEntity(WORKER_URL, task, Void.class);
+            restTemplate.postForEntity(workerUrl, task, Void.class);
         } catch (Exception e) {
             System.err.println("Ошибка отправки задачи воркеру: " + e.getMessage());
             taskQueue.add(task);

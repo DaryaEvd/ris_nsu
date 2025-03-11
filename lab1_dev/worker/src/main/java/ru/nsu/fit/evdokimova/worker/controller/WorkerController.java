@@ -1,6 +1,7 @@
 package ru.nsu.fit.evdokimova.worker.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,6 +15,7 @@ import ru.nsu.fit.evdokimova.worker.model.dto.RequestFromManagerToWorker;
 @RequestMapping("/internal/api/worker/hash/crack")
 public class WorkerController {
 
+    @Autowired
     private final WorkerService workerService;
 
     @PostMapping("/task")
