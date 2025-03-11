@@ -3,6 +3,7 @@ package ru.nsu.fit.evdokimova.manager.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
 import ru.nsu.fit.evdokimova.manager.model.dto.RequestForCrackFromClient;
 import ru.nsu.fit.evdokimova.manager.model.dto.ResponseForCrackToClient;
 import ru.nsu.fit.evdokimova.manager.model.dto.ResponseRequestIdToClient;
@@ -27,7 +28,7 @@ public class HashCrackController {
     }
 
     @PatchMapping("/request")
-    public ResponseEntity<Void> receiveWorkerResponse(@RequestBody ManagerResponse response) {
+    public ResponseEntity<Void> receiveWorkerResponse(@RequestBody ResponseToManagerFromWorker response) {
         managerService.processWorkerResponse(response);
         return ResponseEntity.ok().build();
     }

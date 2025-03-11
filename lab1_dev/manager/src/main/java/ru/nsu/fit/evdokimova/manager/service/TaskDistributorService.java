@@ -1,7 +1,7 @@
 package ru.nsu.fit.evdokimova.manager.service;
 
 import org.springframework.stereotype.Service;
-import ru.nsu.fit.evdokimova.manager.model.TaskData;
+import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +29,8 @@ public class TaskDistributorService {
         return Math.max(1, optimalParts);
     }
 
-    public List<TaskData> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partCount) {
-        List<TaskData> tasks = new ArrayList<>();
+    public List<RequestFromManagerToWorker> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partCount) {
+        List<RequestFromManagerToWorker> tasks = new ArrayList<>();
 
         int chunkSize = totalPermutations / partCount;
         int remainder = totalPermutations % partCount;
@@ -43,7 +43,7 @@ public class TaskDistributorService {
                 currentEnd += remainder;
             }
 
-            tasks.add(new TaskData(requestId, hash, maxLength, partCount, i, currentStart, currentEnd));
+            tasks.add(new RequestFromManagerToWorker(requestId, hash, maxLength, partCount, i, currentStart, currentEnd));
             currentStart = currentEnd + 1;
         }
 

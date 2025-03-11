@@ -7,7 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class TaskData {
+public class RequestFromManagerToWorker {
     String requestId;
     String hash;
     int maxLength;

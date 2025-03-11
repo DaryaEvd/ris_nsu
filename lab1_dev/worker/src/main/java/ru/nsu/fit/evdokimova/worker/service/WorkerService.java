@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static ru.nsu.fit.evdokimova.worker.config.ConstantsWorker.ALPHABET;
+
 @Service
 @RequiredArgsConstructor
 public class WorkerService {
@@ -19,7 +21,7 @@ public class WorkerService {
     private final RestTemplate restTemplate;
     private static final String MANAGER_URL = "http://manager:8080/internal/api/manager/hash/crack/request";
 
-    public void processTask(WorkerTaskRequest request) {
+    public void processTask(RequestFromManagerToWorker request) {
         List<String> foundWords = new ArrayList<>();
         String targetHash = request.getHash();
 

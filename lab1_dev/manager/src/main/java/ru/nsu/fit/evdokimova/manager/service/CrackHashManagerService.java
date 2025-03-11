@@ -5,7 +5,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.nsu.fit.evdokimova.manager.model.CrackRequestData;
-import ru.nsu.fit.evdokimova.manager.model.TaskData;
+import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
+import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
 import ru.nsu.fit.evdokimova.manager.model.dto.RequestForCrackFromClient;
 import ru.nsu.fit.evdokimova.manager.model.dto.ResponseForCrackToClient;
 import ru.nsu.fit.evdokimova.manager.model.StatusWork;
@@ -24,7 +25,7 @@ public class CrackHashManagerService {
     private static final String WORKER_URL = "http://worker:8081/internal/api/worker/hash/crack/task";
 
     private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
-    private final Queue<TaskData> taskQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<RequestFromManagerToWorker> taskQueue = new ConcurrentLinkedQueue<>();
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
         String requestId = UUID.randomUUID().toString();
@@ -32,10 +33,9 @@ public class CrackHashManagerService {
 
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
         int partCount = taskDistributorService.determinePartCount(totalPermutations);
-        List<TaskData> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
+        List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
 
         taskQueue.addAll(tasks);
-        assignTasksToWorkers();
 
         return new ResponseForCrackToClient(requestId);
     }
@@ -48,31 +48,31 @@ public class CrackHashManagerService {
         return new ResponseRequestIdToClient(requestData.getStatus(), (ArrayList<String>) requestData.getData());
     }
 
+    @Scheduled(fixedRate = 5000) // Каждые 5 секунд
     private void assignTasksToWorkers() {
         while (!taskQueue.isEmpty()) {
-            TaskData task = taskQueue.poll();
+            RequestFromManagerToWorker task = taskQueue.poll();
             if (task != null) {
                 sendTaskToWorker(task);
             }
         }
     }
 
-    private void sendTaskToWorker(TaskData task) {
+    private void sendTaskToWorker(RequestFromManagerToWorker task) {
         try {
             restTemplate.postForEntity(WORKER_URL, task, Void.class);
         } catch (Exception e) {
             System.err.println("Ошибка отправки задачи воркеру: " + e.getMessage());
-            taskQueue.add(task); // Если не удалось отправить, возвращаем задачу в очередь
+            taskQueue.add(task);
         }
     }
 
-    public void processWorkerResponse(ResponseRequestIdToClient response) {
+    public void processWorkerResponse(ResponseToManagerFromWorker response) {
         CrackRequestData requestData = requestStorage.get(response.getRequestId());
         if (requestData == null) return;
 
         requestData.getData().addAll(response.getData());
 
-        // Если все задачи обработаны, меняем статус
         if (taskQueue.isEmpty()) {
             requestData.setStatus(StatusWork.READY);
         }
