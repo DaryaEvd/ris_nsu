@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   manager:
     build:
@@ -16,57 +14,57 @@ services:
     networks:
       - crackhash-network
 
-#  worker1:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-1
-#    ports:
-#      - "8081:8081"
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
-#      - WORKER_PORT=8081
-#    networks:
-#      - crackhash-network
-#
-#  worker2:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-2
-#    ports:
-#      - "8082:8082"
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
-#      - WORKER_PORT=8082
-#    networks:
-#      - crackhash-network
-#
-#  worker3:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-3
-#    ports:
-#      - "8083:8083"
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
-#      - WORKER_PORT=8083
-#    networks:
-#      - crackhash-network
-#
-#  worker4:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-4
-#    ports:
-#      - "8084:8084"
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
-#      - WORKER_PORT=8084
-#    networks:
-#      - crackhash-network
+  worker1:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-1
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - WORKER_PORT=8081
+    networks:
+      - crackhash-network
+
+  worker2:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-2
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - WORKER_PORT=8082
+    networks:
+      - crackhash-network
+
+  worker3:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-3
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - WORKER_PORT=8083
+    networks:
+      - crackhash-network
+
+  worker4:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-4
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - WORKER_PORT=8084
+    networks:
+      - crackhash-network
 
 #  worker5:
 #    build:
