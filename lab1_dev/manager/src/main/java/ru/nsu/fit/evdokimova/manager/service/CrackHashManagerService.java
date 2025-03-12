@@ -2,6 +2,8 @@ package ru.nsu.fit.evdokimova.manager.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @Service
 @RequiredArgsConstructor
 public class CrackHashManagerService {
+
+    private static final Logger log = LoggerFactory.getLogger(CrackHashManagerService.class);
+
     private final TaskDistributorService taskDistributorService;
     private final RestTemplate restTemplate;
 
@@ -38,62 +43,73 @@ public class CrackHashManagerService {
     private void init() {
         workerUrls = new ArrayList<>();
         String[] ports = workerPorts.split(",");
+        Integer workerIndex = 8080;
         for (String port : ports) {
-            workerUrls.add("http://worker:" + port + "/internal/api/worker/hash/crack/task");
-        }
+            workerUrls.add("http://worker" + (workerIndex + 1) + ":" + port + "/internal/api/worker/hash/crack/task");
+            workerIndex++;}
     }
-
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
         String requestId = UUID.randomUUID().toString();
+        log.info("Новый запрос: hash={}, maxLength={}, requestId={}", request.getHash(), request.getMaxLength(), requestId);
+
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis()));
-        //todo: оптимизировать эту штуку
+
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
         int partCount = taskDistributorService.determinePartCount(totalPermutations);
-        List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
+        log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partCount);
 
-        taskQueue.addAll(tasks);
+        List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
+        log.info("Запрос {} разбит на {} частей", requestId, tasks.size());
+
+        assignTasksToWorkers(tasks);
 
         return new ResponseForCrackToClient(requestId);
     }
 
+    private void assignTasksToWorkers(List<RequestFromManagerToWorker> tasks) {
+        int workerIndex = 0;
+        for (RequestFromManagerToWorker task : tasks) {
+            String workerUrl = workerUrls.get(workerIndex);
+            sendTaskToWorker(task, workerUrl);
+            workerIndex = (workerIndex + 1) % workerUrls.size();
+        }
+    }
+
+    private void sendTaskToWorker(RequestFromManagerToWorker task, String workerUrl) {
+        try {
+            log.info("Отправка задачи воркеру {}: requestId={}, partNumber={}", workerUrl, task.getRequestId(), task.getPartNumber());
+            restTemplate.postForEntity(workerUrl, task, Void.class);
+        } catch (Exception e) {
+            log.error("Ошибка отправки задачи воркеру {}: {}", workerUrl, e.getMessage());
+            taskQueue.add(task);
+        }
+    }
 
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
         CrackRequestData requestData = requestStorage.get(requestId);
         if (requestData == null) {
+            log.warn("❌ Запрос {} не найден в хранилище", requestId);
             return new ResponseRequestIdToClient(StatusWork.ERROR, null);
         }
-        return new ResponseRequestIdToClient(requestData.getStatus(), (ArrayList<String>) requestData.getData());
-    }
 
+        log.info("📊 Запрос {}: статус={}, найденные слова={}", requestId, requestData.getStatus(), requestData.getData());
+        return new ResponseRequestIdToClient(requestData.getStatus(), new ArrayList<>(requestData.getData()));
+    }
 
     @Scheduled(fixedRate = 5000)
-    private void assignTasksToWorkers() {
-        int workerIndex = 0;
-        while (!taskQueue.isEmpty()) {
-            RequestFromManagerToWorker task = taskQueue.poll();
-            if (task != null) {
-                String workerUrl = workerUrls.get(workerIndex);
-                sendTaskToWorker(task, workerUrl);
-                workerIndex = (workerIndex + 1) % workerUrls.size();  // Переключаемся на следующего воркера
-            }
-        }
-    }
-
-
-    private void sendTaskToWorker(RequestFromManagerToWorker task, String workerUrl) {
-        try {
-            restTemplate.postForEntity(workerUrl, task, Void.class);
-        } catch (Exception e) {
-            System.err.println("Ошибка отправки задачи воркеру: " + e.getMessage());
-            taskQueue.add(task);
-        }
+    private void retryFailedTasks() {
+        if (taskQueue.isEmpty()) return;
+        log.info("Повторная отправка {} задач", taskQueue.size());
+        assignTasksToWorkers(new ArrayList<>(taskQueue));
+        taskQueue.clear();
     }
 
     public void processWorkerResponse(ResponseToManagerFromWorker response) {
         CrackRequestData requestData = requestStorage.get(response.getRequestId());
         if (requestData == null) return;
 
+        log.info("Воркер вернул результат для requestId={} -> {}", response.getRequestId(), response.getData());
         requestData.getData().addAll(response.getData());
 
         if (taskQueue.isEmpty()) {
