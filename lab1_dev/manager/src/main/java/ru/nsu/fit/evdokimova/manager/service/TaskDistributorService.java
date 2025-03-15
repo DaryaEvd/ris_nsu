@@ -23,30 +23,32 @@ public class TaskDistributorService {
     }
 
     public int determinePartCount(int totalPermutations, int workerCount) {
-//        int cpuCores = Runtime.getRuntime().availableProcessors();
-//        int estimatedWorkers = Math.max(2, cpuCores / 2);
-//
-//        int optimalParts = Math.min(totalPermutations, Math.max(estimatedWorkers, totalPermutations / 500));
-//
-//        return Math.max(1, optimalParts);
-        return Math.min(totalPermutations, workerCount);
+        int partSize = Math.max(500, totalPermutations / (workerCount * 2));
+        return Math.min(totalPermutations, partSize);
     }
 
-    public List<RequestFromManagerToWorker> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partCount) {
+    public int determinePartNumber(int totalPermutations, int workerCount) {
+//        int basePartSize = Math.max(500, totalPermutations / (workerCount * 2));
+//        return (int) Math.ceil((double) totalPermutations / basePartSize);
+
+        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
+        return Math.min(totalPermutations, partSize);
+    }
+
+    public List<RequestFromManagerToWorker> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partNumber) {
         List<RequestFromManagerToWorker> tasks = new ArrayList<>();
 
-        int chunkSize = totalPermutations / partCount;
-        int remainder = totalPermutations % partCount;
+        int partSize = totalPermutations / partNumber;
+        int remainder = totalPermutations % partNumber;
 
         int currentStart = 0;
-        for (int i = 0; i < partCount; i++) {
-            int currentEnd = currentStart + chunkSize - 1;
-
-            if (i == partCount - 1) {
+        for (int i = 0; i < partNumber; i++) {
+            int currentEnd = currentStart + partSize - 1;
+            if (i == partNumber - 1) {
                 currentEnd += remainder;
             }
 
-            tasks.add(new RequestFromManagerToWorker(requestId, hash, maxLength, partCount, i, currentStart, currentEnd));
+            tasks.add(new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i, currentStart, currentEnd));
             currentStart = currentEnd + 1;
         }
 

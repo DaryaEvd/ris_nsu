@@ -13,4 +13,5 @@ public class CrackRequestData {
     private StatusWork status;
     private List<String> data;
     private long timestamp;
+    private int expectedParts;
 }

@@ -23,42 +23,34 @@ public class WorkerService {
     private static final String MANAGER_URL = "http://crackhash-manager:8080/internal/api/manager/hash/crack/request";
 
     public void processTask(RequestFromManagerToWorker request) {
-        log.info("Получена задача от менеджера: requestId={}, partNumber={}", request.getRequestId(), request.getPartNumber());
+        log.info("Получена задача: requestId={}, partNumber={}, диапазон: {}-{}",
+                request.getRequestId(), request.getPartNumber(), request.getStartIndex(), request.getEndIndex());
 
         List<String> foundWords = new ArrayList<>();
         String targetHash = request.getHash();
 
-        List<String> words = generateWords(request.getMaxLength(), request.getPartNumber(), request.getPartCount());
+        List<String> words = generateWords(request.getMaxLength(), request.getStartIndex(), request.getEndIndex());
 
         log.info("Воркер сгенерировал {} слов", words.size());
         for (String word : words) {
             String calculatedHash = DigestUtils.md5Hex(word);
-            log.info("Проверка слова: '{}' -> хеш: {}", word, calculatedHash);
             if (calculatedHash.equals(targetHash)) {
-                log.info("Найдено совпадение! requestId={}, Слово: {}", request.getRequestId(), word);
+                log.info("Найдено совпадение: {}", word);
                 foundWords.add(word);
             }
         }
 
-        if (!foundWords.isEmpty()) {
-            sendResultToManager(request.getRequestId(), foundWords);
-        }else {
-            log.info("Совпадений не найдено.");
-            sendResultToManager(request.getRequestId(), foundWords);
-        }
+        sendResultToManager(request.getRequestId(), foundWords);
     }
 
     private List<String> generateWords(int maxLength, int startIndex, int endIndex) {
-        List<String> words = Generator.permutation(ALPHABET.split(""))
+        return Generator.permutation(ALPHABET.split(""))
                 .withRepetitions(maxLength)
                 .stream()
                 .skip(startIndex)
                 .limit(endIndex - startIndex + 1)
                 .map(list -> String.join("", list))
                 .toList();
-
-        log.info("Воркер сгенерировал {} слов (от {} до {})", words.size(), startIndex, endIndex);
-        return words;
     }
 
     private void sendResultToManager(String requestId, List<String> words) {
@@ -69,14 +61,8 @@ public class WorkerService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<ResponseToManagerFromWorker> entity = new HttpEntity<>(response, headers);
 
-            restTemplate.exchange(
-                    MANAGER_URL,
-                    HttpMethod.PATCH,
-                    entity,
-                    Void.class
-            );
-
-            log.info("Результат успешно отправлен менеджеру: requestId={}", requestId);
+            restTemplate.exchange(MANAGER_URL, HttpMethod.PATCH, entity, Void.class);
+            log.info("Результат отправлен менеджеру: requestId={}", requestId);
         } catch (Exception e) {
             log.error("Ошибка отправки результата менеджеру: {}", e.getMessage());
         }

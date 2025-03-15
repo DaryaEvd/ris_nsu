@@ -38,6 +38,7 @@ public class CrackHashManagerService {
     private List<String> workerUrls;
     private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
     private final Queue<RequestFromManagerToWorker> taskQueue = new ConcurrentLinkedQueue<>();
+    private final Map<String, Long> taskTimestamps = new ConcurrentHashMap<>();
 
     @PostConstruct
     private void init() {
@@ -52,13 +53,16 @@ public class CrackHashManagerService {
         String requestId = UUID.randomUUID().toString();
         log.info("Новый запрос: hash={}, maxLength={}, requestId={}", request.getHash(), request.getMaxLength(), requestId);
 
-        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis()));
-
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
-        int partCount = taskDistributorService.determinePartCount(totalPermutations, workerCount);
-        log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partCount);
+//        int partCount = taskDistributorService.determinePartCount(totalPermutations, workerCount);
+//        log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partCount);
 
-        List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
+        int partNumber = taskDistributorService.determinePartNumber(totalPermutations, workerCount);
+        log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partNumber);
+
+        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis(), partNumber));
+
+        List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partNumber);
         log.info("Запрос {} разбит на {} частей", requestId, tasks.size());
 
         assignTasksToWorkers(tasks);
@@ -67,12 +71,6 @@ public class CrackHashManagerService {
     }
 
     private void assignTasksToWorkers(List<RequestFromManagerToWorker> tasks) {
-//        int workerIndex = 0;
-//        for (RequestFromManagerToWorker task : tasks) {
-//            String workerUrl = workerUrls.get(workerIndex);
-//            sendTaskToWorker(task, workerUrl);
-//            workerIndex = (workerIndex + 1) % workerUrls.size();
-//        }
         for (int i = 0; i < tasks.size(); i++) {
             String workerUrl = workerUrls.get(i % workerUrls.size());
             sendTaskToWorker(tasks.get(i), workerUrl);
@@ -83,6 +81,7 @@ public class CrackHashManagerService {
         try {
             log.info("Отправка задачи воркеру {}: requestId={}, partNumber={}", workerUrl, task.getRequestId(), task.getPartNumber());
             restTemplate.postForEntity(workerUrl, task, Void.class);
+            taskTimestamps.put(task.getRequestId() + "-" + task.getPartNumber(), System.currentTimeMillis());
         } catch (Exception e) {
             log.error("Ошибка отправки задачи воркеру {}: {}", workerUrl, e.getMessage());
             taskQueue.add(task);
@@ -100,6 +99,28 @@ public class CrackHashManagerService {
         return new ResponseRequestIdToClient(requestData.getStatus(), new ArrayList<>(requestData.getData()));
     }
 
+
+
+    public void processWorkerResponse(ResponseToManagerFromWorker response) {
+        CrackRequestData requestData = requestStorage.get(response.getRequestId());
+        if (requestData == null) {
+            log.warn("Получен результат для неизвестного requestId={}", response.getRequestId());
+            return;
+        }
+
+        log.info("Воркер вернул результат для requestId={} -> {}", response.getRequestId(), response.getData());
+        requestData.getData().addAll(response.getData());
+
+        int completedParts = requestData.getData().size();
+        log.info("Обработано {} / {} частей для requestId={}", completedParts, requestData.getExpectedParts(), response.getRequestId());
+
+        if (completedParts >= requestData.getExpectedParts()) {
+            requestData.setStatus(StatusWork.READY);
+            log.info("Запрос {} завершён, статус: READY", response.getRequestId());
+        }
+    }
+
+
     @Scheduled(fixedRate = 5000)
     private void retryFailedTasks() {
         if (taskQueue.isEmpty()) return;
@@ -108,25 +129,19 @@ public class CrackHashManagerService {
         taskQueue.clear();
     }
 
-    public void processWorkerResponse(ResponseToManagerFromWorker response) {
-        CrackRequestData requestData = requestStorage.get(response.getRequestId());
-        if (requestData == null) return;
-
-        log.info("Воркер вернул результат для requestId={} -> {}", response.getRequestId(), response.getData());
-        requestData.getData().addAll(response.getData());
-
-        if (taskQueue.isEmpty()) {
-            requestData.setStatus(StatusWork.READY);
-        }
-    }
-
     @Scheduled(fixedRate = 10000)
     private void checkTimeouts() {
         long now = System.currentTimeMillis();
-        requestStorage.forEach((requestId, requestData) -> {
-            if (requestData.getStatus() == StatusWork.IN_PROGRESS && (now - requestData.getTimestamp()) > 30000) {
-                requestData.setStatus(StatusWork.ERROR);
+        for (var entry : taskTimestamps.entrySet()) {
+            if (now - entry.getValue() > 30000) { // 30 секунд
+                String[] parts = entry.getKey().split("-");
+                String requestId = parts[0];
+                int partNumber = Integer.parseInt(parts[1]);
+
+                log.warn("Задача requestId={} partNumber={} просрочена, повторное назначение", requestId, partNumber);
+                taskQueue.add(new RequestFromManagerToWorker(requestId, "", 0, 0, partNumber, 0, 0)); // Заглушка, заполняется в assignTasksToWorkers
+                taskTimestamps.remove(entry.getKey());
             }
-        });
+        }
     }
 }
