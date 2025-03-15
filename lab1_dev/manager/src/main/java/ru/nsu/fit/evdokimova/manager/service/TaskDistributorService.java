@@ -22,13 +22,14 @@ public class TaskDistributorService {
         return total;
     }
 
-    public int determinePartCount(int totalPermutations) {
-        int cpuCores = Runtime.getRuntime().availableProcessors();
-        int estimatedWorkers = Math.max(2, cpuCores / 2);
-
-        int optimalParts = Math.min(totalPermutations, Math.max(estimatedWorkers, totalPermutations / 10_000));
-
-        return Math.max(1, optimalParts);
+    public int determinePartCount(int totalPermutations, int workerCount) {
+//        int cpuCores = Runtime.getRuntime().availableProcessors();
+//        int estimatedWorkers = Math.max(2, cpuCores / 2);
+//
+//        int optimalParts = Math.min(totalPermutations, Math.max(estimatedWorkers, totalPermutations / 500));
+//
+//        return Math.max(1, optimalParts);
+        return Math.min(totalPermutations, workerCount);
     }
 
     public List<RequestFromManagerToWorker> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partCount) {

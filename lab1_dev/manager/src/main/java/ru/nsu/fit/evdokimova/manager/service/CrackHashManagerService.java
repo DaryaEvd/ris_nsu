@@ -55,7 +55,7 @@ public class CrackHashManagerService {
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis()));
 
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
-        int partCount = taskDistributorService.determinePartCount(totalPermutations);
+        int partCount = taskDistributorService.determinePartCount(totalPermutations, workerCount);
         log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partCount);
 
         List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partCount);
@@ -67,11 +67,15 @@ public class CrackHashManagerService {
     }
 
     private void assignTasksToWorkers(List<RequestFromManagerToWorker> tasks) {
-        int workerIndex = 0;
-        for (RequestFromManagerToWorker task : tasks) {
-            String workerUrl = workerUrls.get(workerIndex);
-            sendTaskToWorker(task, workerUrl);
-            workerIndex = (workerIndex + 1) % workerUrls.size();
+//        int workerIndex = 0;
+//        for (RequestFromManagerToWorker task : tasks) {
+//            String workerUrl = workerUrls.get(workerIndex);
+//            sendTaskToWorker(task, workerUrl);
+//            workerIndex = (workerIndex + 1) % workerUrls.size();
+//        }
+        for (int i = 0; i < tasks.size(); i++) {
+            String workerUrl = workerUrls.get(i % workerUrls.size());
+            sendTaskToWorker(tasks.get(i), workerUrl);
         }
     }
 

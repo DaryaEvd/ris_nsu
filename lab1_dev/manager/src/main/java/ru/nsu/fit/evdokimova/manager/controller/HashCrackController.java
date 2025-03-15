@@ -1,7 +1,6 @@
 package ru.nsu.fit.evdokimova.manager.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
@@ -12,10 +11,8 @@ import ru.nsu.fit.evdokimova.manager.service.CrackHashManagerService;
 
 @RestController
 @RequiredArgsConstructor
-//@RequestMapping("/api/hash")
 public class HashCrackController {
 
-    @Autowired
     private final CrackHashManagerService managerService;
 
     @PostMapping("/api/hash/crack")
