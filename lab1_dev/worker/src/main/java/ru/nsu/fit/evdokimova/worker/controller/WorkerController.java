@@ -15,7 +15,6 @@ import ru.nsu.fit.evdokimova.worker.model.dto.RequestFromManagerToWorker;
 @RequestMapping("/internal/api/worker/hash/crack")
 public class WorkerController {
 
-    @Autowired
     private final WorkerService workerService;
 
     @PostMapping("/task")

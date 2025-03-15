@@ -64,9 +64,9 @@ public class WorkerService {
 
     private void sendResultToManager(String requestId, List<String> words) {
         ResponseToManagerFromWorker response = new ResponseToManagerFromWorker(requestId, words);
-//        restTemplate.patchForObject(MANAGER_URL, response, Void.class);
+        restTemplate.patchForObject(MANAGER_URL, response, Void.class);
 
-        TODO: https://stackoverflow.com/questions/29447382/resttemplate-patch-request
+//        TODO: https://stackoverflow.com/questions/29447382/resttemplate-patch-request
 //        RequestEntity
 //        HttpHeaders headers = new HttpHeaders();
 //        headers.setContentType(MediaType.APPLICATION_JSON);
