@@ -1,6 +1,8 @@
 package ru.nsu.fit.evdokimova.manager.service;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 
@@ -12,6 +14,7 @@ import static ru.nsu.fit.evdokimova.manager.config.Constants.ALPHABET;
 @RequiredArgsConstructor
 @Service
 public class TaskDistributorService {
+    private static final Logger log = LoggerFactory.getLogger(TaskDistributorService.class);
 
     public int calculateTotalPermutations(int maxLength) {
         int total = 0;
@@ -49,6 +52,7 @@ public class TaskDistributorService {
             }
 
             tasks.add(new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i, currentStart, currentEnd));
+            log.info("partNUmber {}   | curr start {}  |   curr end  {}   ", partNumber,  currentStart, currentEnd );
             currentStart = currentEnd + 1;
         }
 

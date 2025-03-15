@@ -19,6 +19,7 @@ import ru.nsu.fit.evdokimova.manager.model.dto.ResponseRequestIdToClient;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +61,7 @@ public class CrackHashManagerService {
         int partNumber = taskDistributorService.determinePartNumber(totalPermutations, workerCount);
         log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partNumber);
 
-        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new ArrayList<>(), System.currentTimeMillis(), partNumber));
+        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS, new CopyOnWriteArrayList<>(), System.currentTimeMillis(), partNumber));
 
         List<RequestFromManagerToWorker> tasks = taskDistributorService.divideTask(requestId, request.getHash(), request.getMaxLength(), totalPermutations, partNumber);
         log.info("Запрос {} разбит на {} частей", requestId, tasks.size());
