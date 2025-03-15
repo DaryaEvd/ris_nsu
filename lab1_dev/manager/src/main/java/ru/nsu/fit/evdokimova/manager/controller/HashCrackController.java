@@ -12,25 +12,25 @@ import ru.nsu.fit.evdokimova.manager.service.CrackHashManagerService;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/hash")
+//@RequestMapping("/api/hash")
 public class HashCrackController {
 
     @Autowired
     private final CrackHashManagerService managerService;
 
-    @PostMapping("/crack")
+    @PostMapping("/api/hash/crack")
     public ResponseEntity<ResponseForCrackToClient> crackHash(@RequestBody RequestForCrackFromClient request) {
         ResponseForCrackToClient response = managerService.createCrackRequest(request);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/status")
+    @GetMapping("/api/hash/status")
     public ResponseEntity<ResponseRequestIdToClient> getStatus(@RequestParam String requestId) {
         ResponseRequestIdToClient response = managerService.getCrackStatus(requestId);
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/request")
+    @PatchMapping("/internal/api/manager/hash/crack/request")
     public ResponseEntity<Void> receiveWorkerResponse(@RequestBody ResponseToManagerFromWorker response) {
         managerService.processWorkerResponse(response);
         return ResponseEntity.ok().build();

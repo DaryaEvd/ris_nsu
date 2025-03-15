@@ -22,7 +22,7 @@ public class WorkerService {
     private static final Logger log = LoggerFactory.getLogger(WorkerService.class);
 
     private final RestTemplate restTemplate;
-    private static final String MANAGER_URL = "http://manager:8080/internal/api/manager/hash/crack/request";
+    private static final String MANAGER_URL = "http://crackhash-manager:8080/internal/api/manager/hash/crack/request";
 
     public void processTask(RequestFromManagerToWorker request) {
         log.info("Получена задача от менеджера: requestId={}, partNumber={}", request.getRequestId(), request.getPartNumber());
@@ -46,6 +46,7 @@ public class WorkerService {
             sendResultToManager(request.getRequestId(), foundWords);
         }else {
             log.info("Совпадений не найдено.");
+            sendResultToManager(request.getRequestId(), foundWords);
         }
     }
 
@@ -63,20 +64,32 @@ public class WorkerService {
     }
 
     private void sendResultToManager(String requestId, List<String> words) {
-        ResponseToManagerFromWorker response = new ResponseToManagerFromWorker(requestId, words);
-        restTemplate.patchForObject(MANAGER_URL, response, Void.class);
+//        ResponseToManagerFromWorker response = new ResponseToManagerFromWorker(requestId, words);
+//        try {
+//            log.info("Отправка результата менеджеру: requestId={}", requestId);
+//            restTemplate.postForEntity(MANAGER_URL, response, Void.class);
+//            log.info("Результат успешно отправлен менеджеру: requestId={}", requestId);
+//        } catch (Exception e) {
+//            log.error("Ошибка отправки результата менеджеру: {}", e.getMessage());
+//        }
 
-//        TODO: https://stackoverflow.com/questions/29447382/resttemplate-patch-request
-//        RequestEntity
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//        HttpEntity<ResponseToManagerFromWorker> requestEntity = new HttpEntity<>(response, headers);
-//
-//        restTemplate.exchange(
-//                MANAGER_URL,
-//                HttpMethod.PATCH,
-//                requestEntity,
-//                Void.class
-//        );
+        ResponseToManagerFromWorker response = new ResponseToManagerFromWorker(requestId, words);
+        try {
+            log.info("Отправка результата менеджеру: requestId={}, data={}", requestId, words);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<ResponseToManagerFromWorker> entity = new HttpEntity<>(response, headers);
+
+            restTemplate.exchange(
+                    "http://crackhash-manager:8080/internal/api/manager/hash/crack/request",
+                    HttpMethod.PATCH,
+                    entity,
+                    Void.class
+            );
+
+            log.info("Результат успешно отправлен менеджеру: requestId={}", requestId);
+        } catch (Exception e) {
+            log.error("Ошибка отправки результата менеджеру: {}", e.getMessage());
+        }
     }
 }

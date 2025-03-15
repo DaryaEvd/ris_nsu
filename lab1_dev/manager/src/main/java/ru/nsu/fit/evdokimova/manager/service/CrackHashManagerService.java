@@ -43,10 +43,9 @@ public class CrackHashManagerService {
     private void init() {
         workerUrls = new ArrayList<>();
         String[] ports = workerPorts.split(",");
-        Integer workerIndex = 8080;
-        for (String port : ports) {
-            workerUrls.add("http://worker" + (workerIndex + 1) + ":" + port + "/internal/api/worker/hash/crack/task");
-            workerIndex++;}
+        for (int i = 0; i < workerCount; i++) {
+            workerUrls.add(String.format("http://crackhash-worker-%d:%s/internal/api/worker/hash/crack/task", i + 1, ports[i]));
+        }
     }
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
@@ -89,11 +88,11 @@ public class CrackHashManagerService {
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
         CrackRequestData requestData = requestStorage.get(requestId);
         if (requestData == null) {
-            log.warn("❌ Запрос {} не найден в хранилище", requestId);
+            log.warn("Запрос {} не найден в хранилище", requestId);
             return new ResponseRequestIdToClient(StatusWork.ERROR, null);
         }
 
-        log.info("📊 Запрос {}: статус={}, найденные слова={}", requestId, requestData.getStatus(), requestData.getData());
+        log.info("Запрос {}: статус={}, найденные слова={}", requestId, requestData.getStatus(), requestData.getData());
         return new ResponseRequestIdToClient(requestData.getStatus(), new ArrayList<>(requestData.getData()));
     }
 
