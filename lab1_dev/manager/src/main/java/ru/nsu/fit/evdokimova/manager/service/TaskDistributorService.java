@@ -8,6 +8,7 @@ import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static ru.nsu.fit.evdokimova.manager.config.Constants.ALPHABET;
 
@@ -34,13 +35,20 @@ public class TaskDistributorService {
 //        int basePartSize = Math.max(500, totalPermutations / (workerCount * 2));
 //        return (int) Math.ceil((double) totalPermutations / basePartSize);
 
-        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
-        return Math.min(totalPermutations, partSize);
+//        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
+//        return Math.min(totalPermutations, partSize);
+
+        return 10_000;
     }
 
-    public List<RequestFromManagerToWorker> divideTask(String requestId, String hash, int maxLength, int totalPermutations, int partNumber) {
-        List<RequestFromManagerToWorker> tasks = new ArrayList<>();
-
+    public void divideTask(
+            String requestId,
+            String hash,
+            int maxLength,
+            int totalPermutations,
+            int partNumber,
+            Consumer<RequestFromManagerToWorker> taskConsumer
+    ) {
         int partSize = totalPermutations / partNumber;
         int remainder = totalPermutations % partNumber;
 
@@ -51,11 +59,12 @@ public class TaskDistributorService {
                 currentEnd += remainder;
             }
 
-            tasks.add(new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i, currentStart, currentEnd));
-            log.info("partNUmber {}   | curr start {}  |   curr end  {}   ", partNumber,  currentStart, currentEnd );
+            RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i, currentStart, currentEnd);
+            log.info("Создана задача partNumber={} | start={} | end={}", i, currentStart, currentEnd);
+
+            taskConsumer.accept(task);
+
             currentStart = currentEnd + 1;
         }
-
-        return tasks;
     }
 }
