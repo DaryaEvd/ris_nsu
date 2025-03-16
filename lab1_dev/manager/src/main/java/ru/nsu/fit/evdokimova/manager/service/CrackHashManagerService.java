@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -91,11 +92,21 @@ public class CrackHashManagerService {
 
     private void sendTaskToWorker(RequestFromManagerToWorker task, String workerUrl) {
         try {
-            log.info("Отправка задачи воркеру {}: requestId={}, partNumber={}",
-                    workerUrl, task.getRequestId(), task.getPartNumber());
-            restTemplate.postForEntity(workerUrl, task, Void.class);
+            log.info("Отправка задачи воркеру {}: requestId={}, partNumber={}", workerUrl, task.getRequestId(), task.getPartNumber());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<RequestFromManagerToWorker> entity = new HttpEntity<>(task, headers);
+
+            ResponseEntity<Void> response = restTemplate.exchange(
+                    workerUrl, HttpMethod.POST, entity, Void.class);
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Ошибка отправки: код " + response.getStatusCode());
+            }
+
         } catch (Exception e) {
-            log.error("Ошибка отправки задачи воркеру {}: {}", workerUrl, e.getMessage());
+            log.error("Ошибка отправки задачи воркеру {}: {}, задача будет переназначена", workerUrl, e.getMessage());
             taskQueue.add(task);
         }
     }
