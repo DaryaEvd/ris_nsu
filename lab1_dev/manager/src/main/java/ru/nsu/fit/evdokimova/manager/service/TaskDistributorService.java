@@ -38,7 +38,20 @@ public class TaskDistributorService {
 //        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
 //        return Math.min(totalPermutations, partSize);
 
-        return 10_000;
+        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
+        if(totalPermutations < 100) {
+            return Math.min(totalPermutations, partSize);
+        }
+        else if(totalPermutations < 2000) {
+            return 4;
+        }
+        else if(totalPermutations < 50_000) {
+            return 10;
+        }
+        else if(totalPermutations < 2_000_000) {
+            return 10_000;
+        }
+        return 100_000;
     }
 
     public void divideTask(
@@ -59,7 +72,8 @@ public class TaskDistributorService {
                 currentEnd += remainder;
             }
 
-            RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i, currentStart, currentEnd);
+            RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength,
+                                                                partNumber, i, currentStart, currentEnd);
             log.info("Создана задача partNumber={} | start={} | end={}", i, currentStart, currentEnd);
 
             taskConsumer.accept(task);

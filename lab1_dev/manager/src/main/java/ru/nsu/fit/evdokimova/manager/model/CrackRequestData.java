@@ -14,4 +14,10 @@ public class CrackRequestData {
     private List<String> data;
     private long timestamp;
     private int expectedParts;
+
+    private int completedParts;
+
+    public synchronized void incrementCompletedParts() {
+        this.completedParts++;
+    }
 }
