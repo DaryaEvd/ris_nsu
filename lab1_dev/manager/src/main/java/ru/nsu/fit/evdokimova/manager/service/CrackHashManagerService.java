@@ -57,7 +57,7 @@ public class CrackHashManagerService {
                 request.getHash(), request.getMaxLength(), requestId);
 
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
-                new CopyOnWriteArrayList<>(), System.currentTimeMillis(), 0, 0));
+                new CopyOnWriteArrayList<>(), 0, 0));
 
         executorService.submit(() -> processCrackRequest(requestId, request));
 

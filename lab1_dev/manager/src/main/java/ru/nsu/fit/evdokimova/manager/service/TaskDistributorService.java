@@ -48,12 +48,12 @@ public class TaskDistributorService {
             int partNumber,
             Consumer<RequestFromManagerToWorker> taskConsumer
     ) {
-        int partSize = totalPermutations / partNumber;
+        int partCount = totalPermutations / partNumber;
         int remainder = totalPermutations % partNumber;
 
         int currentStart = 0;
         for (int i = 0; i < partNumber; i++) {
-            int currentEnd = currentStart + partSize - 1;
+            int currentEnd = currentStart + partCount - 1;
             if (i == partNumber - 1) {
                 currentEnd += remainder;
             }
