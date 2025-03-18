@@ -53,7 +53,7 @@ public class CrackHashManagerService {
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
         String requestId = UUID.randomUUID().toString();
-        log.info("Новый запрос: hash={}, maxLength={}, requestId={}",
+        log.info("New request: hash={}, maxLength={}, requestId={}",
                 request.getHash(), request.getMaxLength(), requestId);
 
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
@@ -67,13 +67,13 @@ public class CrackHashManagerService {
     private void processCrackRequest(String requestId, RequestForCrackFromClient request) {
         int totalPermutations = taskDistributorService.calculateTotalPermutations(request.getMaxLength());
         int partNumber = taskDistributorService.determinePartNumber(totalPermutations, workerCount);
-        log.info("Общее число перестановок: {}, частей: {}", totalPermutations, partNumber);
+        log.info("Total permutations number: {}, parts: {}", totalPermutations, partNumber);
 
         CrackRequestData requestData = requestStorage.get(requestId);
         if (requestData != null) {
             requestData.setExpectedParts(partNumber);
         } else {
-            log.error("Ошибка: не найден requestData для requestId={}", requestId);
+            log.error("Error: requestData not found for requestId={}", requestId);
         }
 
         taskDistributorService.divideTask(
@@ -92,7 +92,7 @@ public class CrackHashManagerService {
 
     private void sendTaskToWorker(RequestFromManagerToWorker task, String workerUrl) {
         try {
-            log.info("Отправка задачи воркеру {}: requestId={}, partNumber={}", workerUrl, task.getRequestId(), task.getPartNumber());
+            log.info("Sending task to worker {}: requestId={}, partNumber={}", workerUrl, task.getRequestId(), task.getPartNumber());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -102,11 +102,11 @@ public class CrackHashManagerService {
                     workerUrl, HttpMethod.POST, entity, Void.class);
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new RuntimeException("Ошибка отправки: код " + response.getStatusCode());
+                throw new RuntimeException("Error with sending" + response.getStatusCode());
             }
 
         } catch (Exception e) {
-            log.error("Ошибка отправки задачи воркеру {}: {}, задача будет переназначена", workerUrl, e.getMessage());
+            log.error("Error sending task to worker {}: {}, task will be reassigned", workerUrl, e.getMessage());
             taskQueue.add(task);
         }
     }
@@ -115,16 +115,16 @@ public class CrackHashManagerService {
         CrackRequestData requestData = requestStorage.get(response.getRequestId());
         if (requestData == null) return;
 
-        log.info("Воркер вернул результат для requestId={} -> {}", response.getRequestId(), response.getData());
+        log.info("Worker sent result requestId={} -> {}", response.getRequestId(), response.getData());
         requestData.getData().addAll(response.getData());
 
         synchronized (requestData) {
             requestData.incrementCompletedParts();
-            log.info("Обработано {} / {} частей для requestId={}", requestData.getCompletedParts(), requestData.getExpectedParts(), response.getRequestId());
+            log.info("Processed {} / {} parts for requestId={}", requestData.getCompletedParts(), requestData.getExpectedParts(), response.getRequestId());
 
             if (requestData.getCompletedParts() >= requestData.getExpectedParts()) {
                 requestData.setStatus(StatusWork.READY);
-                log.info("Запрос {} завершён, статус: READY", response.getRequestId());
+                log.info("Request {} finished, status: READY", response.getRequestId());
             }
         }
     }
@@ -133,7 +133,7 @@ public class CrackHashManagerService {
     private void retryFailedTasks() {
         if (taskQueue.isEmpty()) return;
 
-        log.info("Повторная отправка {} задач", taskQueue.size());
+        log.info("Resend {} tasks", taskQueue.size());
 
         List<RequestFromManagerToWorker> tasksToRetry = new ArrayList<>();
 
@@ -147,11 +147,11 @@ public class CrackHashManagerService {
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
         CrackRequestData requestData = requestStorage.get(requestId);
         if (requestData == null) {
-            log.warn("Запрос {} не найден в хранилище", requestId);
+            log.warn("Request {} not found in storage", requestId);
             return new ResponseRequestIdToClient(StatusWork.ERROR, null);
         }
 
-        log.info("Запрос {}: статус={}, найденные слова={}",
+        log.info("Request {}: status={}, found words={}",
                 requestId, requestData.getStatus(), requestData.getData());
         return new ResponseRequestIdToClient(requestData.getStatus(), new ArrayList<>(requestData.getData()));
     }

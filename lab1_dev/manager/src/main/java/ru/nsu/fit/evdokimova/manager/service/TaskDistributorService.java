@@ -26,32 +26,18 @@ public class TaskDistributorService {
         return total;
     }
 
-    public int determinePartCount(int totalPermutations, int workerCount) {
-        int partSize = Math.max(500, totalPermutations / (workerCount * 2));
-        return Math.min(totalPermutations, partSize);
-    }
-
     public int determinePartNumber(int totalPermutations, int workerCount) {
-//        int basePartSize = Math.max(500, totalPermutations / (workerCount * 2));
-//        return (int) Math.ceil((double) totalPermutations / basePartSize);
+        if (totalPermutations < 100) {
+            return Math.min(totalPermutations, workerCount);
+        }
 
-//        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
-//        return Math.min(totalPermutations, partSize);
+        int baseParts = Math.max(4, workerCount * 2);
+        double logFactorParts = Math.log10(totalPermutations) * baseParts;
 
-        int partSize = Math.max(totalPermutations / 500, workerCount * 2);
-        if(totalPermutations < 100) {
-            return Math.min(totalPermutations, partSize);
-        }
-        else if(totalPermutations < 2000) {
-            return 4;
-        }
-        else if(totalPermutations < 50_000) {
-            return 10;
-        }
-        else if(totalPermutations < 2_000_000) {
-            return 10_000;
-        }
-        return 100_000;
+        int coefficient = 500;
+        int scaledParts = (int) Math.min((double) totalPermutations / coefficient, logFactorParts);
+
+        return Math.max(baseParts, scaledParts);
     }
 
     public void divideTask(
@@ -74,7 +60,7 @@ public class TaskDistributorService {
 
             RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength,
                                                                 partNumber, i, currentStart, currentEnd);
-            log.info("Создана задача partNumber={} | start={} | end={}", i, currentStart, currentEnd);
+            log.info("Created task: partNumber={} | start={} | end={}", i, currentStart, currentEnd);
 
             taskConsumer.accept(task);
 

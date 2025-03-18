@@ -6,7 +6,6 @@ ENV GRADLE_USER_HOME /usr/gradle/cache
 RUN mkdir -p /usr/gradle/cache
 COPY build.gradle $APP_HOME
 WORKDIR $APP_HOME
-# COPY . .
 RUN ./gradlew build || return 0
 
 FROM gradle:latest AS build
