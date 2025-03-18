@@ -8,11 +8,11 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class RequestFromManagerToWorker {
-    String requestId;
-    String hash;
-    int maxLength;
-    int partCount;
-    int partNumber;
-    int startIndex;
-    int endIndex;
+    private String requestId;
+    private String hash;
+    private int maxLength;
+    private int partCount;
+    private int partNumber;
+    private int startIndex;
+    private int endIndex;
 }

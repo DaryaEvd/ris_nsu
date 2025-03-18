@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
-import ru.nsu.fit.evdokimova.manager.model.dto.RequestForCrackFromClient;
-import ru.nsu.fit.evdokimova.manager.model.dto.ResponseForCrackToClient;
-import ru.nsu.fit.evdokimova.manager.model.dto.ResponseRequestIdToClient;
+import ru.nsu.fit.evdokimova.manager.model.RequestForCrackFromClient;
+import ru.nsu.fit.evdokimova.manager.model.ResponseForCrackToClient;
+import ru.nsu.fit.evdokimova.manager.model.ResponseRequestIdToClient;
 import ru.nsu.fit.evdokimova.manager.service.CrackHashManagerService;
 
 @RestController

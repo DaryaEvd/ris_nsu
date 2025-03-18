@@ -16,7 +16,6 @@ public class CrackRequestData {
     private int expectedParts;
 
     private int completedParts;
-
     public synchronized void incrementCompletedParts() {
         this.completedParts++;
     }

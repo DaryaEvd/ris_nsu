@@ -12,10 +12,10 @@ import org.springframework.web.client.RestTemplate;
 import ru.nsu.fit.evdokimova.manager.model.CrackRequestData;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
-import ru.nsu.fit.evdokimova.manager.model.dto.RequestForCrackFromClient;
-import ru.nsu.fit.evdokimova.manager.model.dto.ResponseForCrackToClient;
+import ru.nsu.fit.evdokimova.manager.model.RequestForCrackFromClient;
+import ru.nsu.fit.evdokimova.manager.model.ResponseForCrackToClient;
 import ru.nsu.fit.evdokimova.manager.model.StatusWork;
-import ru.nsu.fit.evdokimova.manager.model.dto.ResponseRequestIdToClient;
+import ru.nsu.fit.evdokimova.manager.model.ResponseRequestIdToClient;
 
 import java.util.*;
 import java.util.concurrent.*;

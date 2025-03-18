@@ -1,4 +1,4 @@
-package ru.nsu.fit.evdokimova.manager.model.dto;
+package ru.nsu.fit.evdokimova.manager.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,5 +8,5 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class ResponseForCrackToClient {
-    String requestId;
+    private String requestId;
 }

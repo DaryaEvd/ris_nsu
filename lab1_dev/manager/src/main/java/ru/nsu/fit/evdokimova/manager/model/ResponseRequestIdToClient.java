@@ -1,9 +1,8 @@
-package ru.nsu.fit.evdokimova.manager.model.dto;
+package ru.nsu.fit.evdokimova.manager.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import ru.nsu.fit.evdokimova.manager.model.StatusWork;
 
 import java.util.ArrayList;
 
@@ -11,6 +10,6 @@ import java.util.ArrayList;
 @Getter
 @AllArgsConstructor
 public class ResponseRequestIdToClient {
-    StatusWork status;
-    ArrayList<String> data;
+    private StatusWork status;
+    private ArrayList<String> data;
 }

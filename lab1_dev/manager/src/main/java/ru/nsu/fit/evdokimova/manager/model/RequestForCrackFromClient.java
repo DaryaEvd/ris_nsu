@@ -1,4 +1,4 @@
-package ru.nsu.fit.evdokimova.manager.model.dto;
+package ru.nsu.fit.evdokimova.manager.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,6 +8,6 @@ import lombok.Setter;
 @Getter
 @AllArgsConstructor
 public class RequestForCrackFromClient {
-    public String hash;
-    public Integer maxLength;
+    private String hash;
+    private Integer maxLength;
 }
