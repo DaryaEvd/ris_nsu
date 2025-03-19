@@ -57,7 +57,7 @@ public class CrackHashManagerService {
                 request.getHash(), request.getMaxLength(), requestId);
 
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
-                new CopyOnWriteArrayList<>(), 0, 0));
+                new CopyOnWriteArrayList<>(), System.currentTimeMillis(), 0, 0));
 
         executorService.submit(() -> processCrackRequest(requestId, request));
 
@@ -142,6 +142,22 @@ public class CrackHashManagerService {
         }
 
         tasksToRetry.forEach(this::assignTaskToWorker);
+    }
+
+
+    @Scheduled(fixedRate = 10000)
+    private void timeoutCheck() {
+        long currentTime = System.currentTimeMillis();
+
+        requestStorage.forEach((requestId, requestData) -> {
+            long elapsedTime = currentTime - requestData.getTimestamp();
+            long timeout = 60000;
+
+            if (requestData.getStatus() == StatusWork.IN_PROGRESS && elapsedTime > timeout) {
+                requestData.setStatus(StatusWork.ERROR);
+                log.error("Request {} timed out. Status set to ERROR.", requestId);
+            }
+        });
     }
 
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
