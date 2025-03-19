@@ -23,24 +23,15 @@ public class WorkerService {
     private static final String MANAGER_URL = "http://crackhash-manager:8080/internal/api/manager/hash/crack/request";
 
     public void processTask(RequestFromManagerToWorker request) {
-        log.info("Received task: requestId={}, partNumber={}", request.getRequestId(), request.getPartNumber());
-
-        int totalPermutations = (int) Math.pow(ALPHABET.length(), request.getMaxLength());
-        int partSize = totalPermutations / request.getPartCount();
-        int startIndex = request.getPartNumber() * partSize;
-        int endIndex = (request.getPartNumber() == request.getPartCount() - 1)
-                ? totalPermutations - 1
-                : startIndex + partSize - 1;
-
-        log.info("Worker processing range: startIndex={} endIndex={} (Total={})",
-                startIndex, endIndex, endIndex - startIndex + 1);
+        log.info("Received task: requestId={}, partNumber={}, range: {}-{}",
+                request.getRequestId(), request.getPartNumber(), request.getStartIndex(), request.getEndIndex());
 
         List<String> foundWords = new ArrayList<>();
         String targetHash = request.getHash();
 
-        List<String> words = generateWords(request.getMaxLength(), startIndex, endIndex);
-        log.info("Worker generated {} words", words.size());
+        List<String> words = generateWords(request.getMaxLength(), request.getStartIndex(), request.getEndIndex());
 
+        log.info("Worker generated {} words", words.size());
         for (String word : words) {
             String calculatedHash = DigestUtils.md5Hex(word);
             if (calculatedHash.equals(targetHash)) {

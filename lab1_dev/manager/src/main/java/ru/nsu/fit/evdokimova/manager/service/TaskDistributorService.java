@@ -51,10 +51,20 @@ public class TaskDistributorService {
         int partCount = totalPermutations / partNumber;
         int remainder = totalPermutations % partNumber;
 
+        int currentStart = 0;
         for (int i = 0; i < partNumber; i++) {
-            RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength, partNumber, i);
-            log.info("Created task: partNumber={}", i);
+            int currentEnd = currentStart + partCount - 1;
+            if (i == partNumber - 1) {
+                currentEnd += remainder;
+            }
+
+            RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength,
+                                                                partNumber, i, currentStart, currentEnd);
+            log.info("Created task: partNumber={} | start={} | end={}", i, currentStart, currentEnd);
+
             taskConsumer.accept(task);
+
+            currentStart = currentEnd + 1;
         }
     }
 }
