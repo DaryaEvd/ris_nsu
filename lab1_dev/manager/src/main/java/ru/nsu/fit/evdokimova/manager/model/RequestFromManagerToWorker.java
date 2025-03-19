@@ -13,6 +13,4 @@ public class RequestFromManagerToWorker {
     private int maxLength;
     private int partCount;
     private int partNumber;
-    private int startIndex;
-    private int endIndex;
 }

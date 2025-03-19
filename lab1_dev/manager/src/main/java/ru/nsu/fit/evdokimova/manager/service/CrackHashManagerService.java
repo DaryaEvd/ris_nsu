@@ -155,7 +155,7 @@ public class CrackHashManagerService {
 
             if (requestData.getStatus() == StatusWork.IN_PROGRESS && elapsedTime > timeout) {
                 requestData.setStatus(StatusWork.ERROR);
-                log.error("Request {} timed out. Status set to ERROR.", requestId);
+                log.error("Request {} timed out. Status set to ERROR", requestId);
             }
         });
     }
