@@ -7,7 +7,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-#      - SPRING_PROFILES_ACTIVE=prod
       - WORKER_COUNT=4
     networks:
       - crackhash-network
@@ -20,7 +19,6 @@ services:
     ports:
       - "8081:8081"
     environment:
-#      - SPRING_PROFILES_ACTIVE=prod
       - WORKER_PORT=8081
     networks:
       - crackhash-network
@@ -33,7 +31,6 @@ services:
     ports:
       - "8082:8082"
     environment:
-#      - SPRING_PROFILES_ACTIVE=prod
       - WORKER_PORT=8082
     networks:
       - crackhash-network
@@ -46,7 +43,6 @@ services:
     ports:
       - "8083:8083"
     environment:
-#      - SPRING_PROFILES_ACTIVE=prod
       - WORKER_PORT=8083
     networks:
       - crackhash-network
@@ -59,7 +55,6 @@ services:
     ports:
       - "8084:8084"
     environment:
-#      - SPRING_PROFILES_ACTIVE=prod
       - WORKER_PORT=8084
     networks:
       - crackhash-network
@@ -72,7 +67,6 @@ services:
 #    ports:
 #      - "8085:8085"
 #    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
 #      - WORKER_PORT=8085
 #    networks:
 #      - crackhash-network
@@ -85,7 +79,6 @@ services:
 #    ports:
 #      - "8086:8086"
 #    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
 #      - WORKER_PORT=8086
 #    networks:
 #      - crackhash-network
@@ -98,7 +91,6 @@ services:
 #    ports:
 #      - "8087:8087"
 #    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
 #      - WORKER_PORT=8087
 #    networks:
 #      - crackhash-network
@@ -111,7 +103,6 @@ services:
 #    ports:
 #      - "8088:8088"
 #    environment:
-#      - SPRING_PROFILES_ACTIVE=prod
 #      - WORKER_PORT=8088
 #    networks:
 #      - crackhash-network

@@ -47,13 +47,13 @@ public class WorkerService {
     }
 
     private List<String> generateWords(int maxLength, int startIndex, int endIndex) {
-        return IntStream.rangeClosed(1, maxLength)  // Перебираем все длины от 1 до maxLength
+        return IntStream.rangeClosed(1, maxLength)
                 .mapToObj(length ->
                         Generator.permutation(ALPHABET.split(""))
                                 .withRepetitions(length)
                                 .stream()
                 )
-                .flatMap(Function.identity())  // Объединяем все потоки в один
+                .flatMap(Function.identity())
                 .skip(startIndex)
                 .limit(endIndex - startIndex + 1)
                 .map(list -> String.join("", list))
