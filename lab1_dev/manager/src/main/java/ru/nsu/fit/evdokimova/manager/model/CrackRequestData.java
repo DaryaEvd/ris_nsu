@@ -5,9 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Getter
 @Setter
@@ -15,8 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CrackRequestData {
     private StatusWork status;
     private List<String> data;
-    private long timestamp;
-
     private int expectedParts;
 
     private int completedParts;

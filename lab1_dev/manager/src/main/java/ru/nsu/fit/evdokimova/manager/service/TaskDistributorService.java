@@ -59,7 +59,7 @@ public class TaskDistributorService {
             }
 
             RequestFromManagerToWorker task = new RequestFromManagerToWorker(requestId, hash, maxLength,
-                                                                partNumber, i, currentStart, currentEnd);
+                    partCount, i, currentStart, currentEnd);
             log.info("Created task: partNumber={} | start={} | end={}", i, currentStart, currentEnd);
 
             taskConsumer.accept(task);

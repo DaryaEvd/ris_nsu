@@ -12,6 +12,9 @@ import org.paukov.combinatorics3.Generator;
 import ru.nsu.fit.evdokimova.worker.model.dto.ResponseToManagerFromWorker;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.IntStream;
+
 import static ru.nsu.fit.evdokimova.worker.config.ConstantsWorker.ALPHABET;
 
 @Service
@@ -44,9 +47,13 @@ public class WorkerService {
     }
 
     private List<String> generateWords(int maxLength, int startIndex, int endIndex) {
-        return Generator.permutation(ALPHABET.split(""))
-                .withRepetitions(maxLength)
-                .stream()
+        return IntStream.rangeClosed(1, maxLength)  // Перебираем все длины от 1 до maxLength
+                .mapToObj(length ->
+                        Generator.permutation(ALPHABET.split(""))
+                                .withRepetitions(length)
+                                .stream()
+                )
+                .flatMap(Function.identity())  // Объединяем все потоки в один
                 .skip(startIndex)
                 .limit(endIndex - startIndex + 1)
                 .map(list -> String.join("", list))

@@ -57,7 +57,7 @@ public class CrackHashManagerService {
                 request.getHash(), request.getMaxLength(), requestId);
 
         requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
-                new CopyOnWriteArrayList<>(), System.currentTimeMillis(), 0, 0));
+                new CopyOnWriteArrayList<>(), 0, 0));
 
         executorService.submit(() -> processCrackRequest(requestId, request));
 
@@ -74,6 +74,18 @@ public class CrackHashManagerService {
             requestData.setExpectedParts(partNumber);
         } else {
             log.error("Error: requestData not found for requestId={}", requestId);
+        }
+
+        int sum = 0;
+        for (int i = 0; i < partNumber; i++) {
+            int startIndex = i * (totalPermutations / partNumber);
+            int endIndex = (i == partNumber - 1) ? totalPermutations - 1 : (startIndex + totalPermutations / partNumber - 1);
+            log.info("Part {}: start={}, end={}, size={}", i, startIndex, endIndex, endIndex - startIndex + 1);
+            sum += (endIndex - startIndex + 1);
+        }
+
+        if (sum != totalPermutations) {
+            log.error("ERROR: Sum of parts ({}) != totalPermutations ({})", sum, totalPermutations);
         }
 
         taskDistributorService.divideTask(
@@ -142,22 +154,6 @@ public class CrackHashManagerService {
         }
 
         tasksToRetry.forEach(this::assignTaskToWorker);
-    }
-
-
-    @Scheduled(fixedRate = 10000)
-    private void timeoutCheck() {
-        long currentTime = System.currentTimeMillis();
-
-        requestStorage.forEach((requestId, requestData) -> {
-            long elapsedTime = currentTime - requestData.getTimestamp();
-            long timeout = 60000;
-
-            if (requestData.getStatus() == StatusWork.IN_PROGRESS && elapsedTime > timeout) {
-                requestData.setStatus(StatusWork.ERROR);
-                log.error("Request {} timed out. Status set to ERROR.", requestId);
-            }
-        });
     }
 
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
