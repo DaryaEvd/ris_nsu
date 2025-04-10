@@ -1,0 +1,128 @@
+services:
+  manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: crackhash-manager
+    ports:
+      - "8080:8080"
+    environment:
+      - WORKER_COUNT=4
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/manager
+    depends_on:
+      - mongo
+    networks:
+      - crackhash-network
+
+  mongo:
+    image: mongo:latest
+    container_name: crackhash-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - crackhash-network
+
+volumes:
+  mongo_data:
+
+#  worker1:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-1
+#    ports:
+#      - "8081:8081"
+#    environment:
+#      - WORKER_PORT=8081
+#    networks:
+#      - crackhash-network
+#
+#  worker2:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-2
+#    ports:
+#      - "8082:8082"
+#    environment:
+#      - WORKER_PORT=8082
+#    networks:
+#      - crackhash-network
+#
+#  worker3:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-3
+#    ports:
+#      - "8083:8083"
+#    environment:
+#      - WORKER_PORT=8083
+#    networks:
+#      - crackhash-network
+#
+#  worker4:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-4
+#    ports:
+#      - "8084:8084"
+#    environment:
+#      - WORKER_PORT=8084
+#    networks:
+#      - crackhash-network
+
+#  worker5:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-5
+#    ports:
+#      - "8085:8085"
+#    environment:
+#      - WORKER_PORT=8085
+#    networks:
+#      - crackhash-network
+#
+#  worker6:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-6
+#    ports:
+#      - "8086:8086"
+#    environment:
+#      - WORKER_PORT=8086
+#    networks:
+#      - crackhash-network
+#
+#  worker7:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-7
+#    ports:
+#      - "8087:8087"
+#    environment:
+#      - WORKER_PORT=8087
+#    networks:
+#      - crackhash-network
+#
+#  worker8:
+#    build:
+#      context: ./worker
+#      dockerfile: Dockerfile
+#    container_name: crackhash-worker-8
+#    ports:
+#      - "8088:8088"
+#    environment:
+#      - WORKER_PORT=8088
+#    networks:
+#      - crackhash-network
+
+networks:
+  crackhash-network:
+    driver: bridge
