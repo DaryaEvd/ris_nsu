@@ -24,32 +24,29 @@ services:
     networks:
       - crackhash-network
 
-volumes:
-  mongo_data:
+  worker1:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-1
+    ports:
+      - "8081:8081"
+    environment:
+      - WORKER_PORT=8081
+    networks:
+      - crackhash-network
 
-#  worker1:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-1
-#    ports:
-#      - "8081:8081"
-#    environment:
-#      - WORKER_PORT=8081
-#    networks:
-#      - crackhash-network
-#
-#  worker2:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-2
-#    ports:
-#      - "8082:8082"
-#    environment:
-#      - WORKER_PORT=8082
-#    networks:
-#      - crackhash-network
+  worker2:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-2
+    ports:
+      - "8082:8082"
+    environment:
+      - WORKER_PORT=8082
+    networks:
+      - crackhash-network
 #
 #  worker3:
 #    build:
@@ -126,3 +123,6 @@ volumes:
 networks:
   crackhash-network:
     driver: bridge
+
+volumes:
+  mongo_data:
