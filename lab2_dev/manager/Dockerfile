@@ -19,4 +19,8 @@ FROM eclipse-temurin:21-jdk-alpine
 ENV APP_HOME=/usr/app
 WORKDIR $APP_HOME
 COPY --from=build $APP_HOME/build/libs/manager-0.0.1-SNAPSHOT.jar manager.jar
+
+HEALTHCHECK --interval=5s --timeout=3s --start-period=30s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
 ENTRYPOINT ["java", "-jar", "manager.jar"]
