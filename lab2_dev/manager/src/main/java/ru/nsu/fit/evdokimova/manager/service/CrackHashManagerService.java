@@ -1,17 +1,15 @@
 package ru.nsu.fit.evdokimova.manager.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.MessageDeliveryMode;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import ru.nsu.fit.evdokimova.manager.config.Constants;
-import ru.nsu.fit.evdokimova.manager.config.RabbitMQConfig;
+import ru.nsu.fit.evdokimova.manager.config.RabbitManagerConfig;
 import ru.nsu.fit.evdokimova.manager.model.CrackRequestData;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
@@ -22,8 +20,6 @@ import ru.nsu.fit.evdokimova.manager.model.ResponseRequestIdToClient;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +27,7 @@ public class CrackHashManagerService {
     private static final Logger log = LoggerFactory.getLogger(CrackHashManagerService.class);
 
     private final TaskDistributorService taskDistributorService;
-    private final AmqpTemplate amqpTemplate;
-    private final RabbitMQConfig rabbitMQConfig;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${worker.count}")
     private int workerCount;
@@ -75,16 +70,27 @@ public class CrackHashManagerService {
     private void assignTaskToWorker(RequestFromManagerToWorker task) {
         executorService.submit(() -> {
             try {
-                String routingKey = "worker." + (task.getPartNumber() % workerCount + 1);
-                amqpTemplate.convertAndSend(rabbitMQConfig.getTasksExchange(), routingKey, task);
-                log.info("Task sent to RabbitMQ: requestId={}, partNumber={}", task.getRequestId(), task.getPartNumber());
+                log.info("Sending task to queue: requestId={}, part={}, range={}-{}",
+                        task.getRequestId(), task.getPartNumber(),
+                        task.getStartIndex(), task.getEndIndex());
+
+                rabbitTemplate.convertAndSend(
+                    RabbitManagerConfig.CRACK_HASH_EXCHANGE,
+                    RabbitManagerConfig.TASKS_ROUTING_KEY,
+                    task,
+                    m -> {
+                        m.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                        return m;
+                    }
+                );
             } catch (Exception e) {
-                log.error("Error sending task to RabbitMQ: {}, task will be reassigned", e.getMessage());
+                log.error("Error sending task to RabbitMQ: {}", e.getMessage());
                 taskQueue.add(task);
             }
         });
     }
 
+    @RabbitListener(queues = RabbitManagerConfig.RESULTS_QUEUE)
     public void processWorkerResponse(ResponseToManagerFromWorker response) {
         CrackRequestData requestData = requestStorage.get(response.getRequestId());
         if (requestData == null) return;

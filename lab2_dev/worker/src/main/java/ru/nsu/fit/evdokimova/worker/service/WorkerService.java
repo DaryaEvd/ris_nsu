@@ -4,12 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.http.*;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import ru.nsu.fit.evdokimova.worker.config.RabbitMQWorkerConfig;
+import ru.nsu.fit.evdokimova.worker.config.RabbitWorkerConfig;
 import ru.nsu.fit.evdokimova.worker.model.dto.RequestFromManagerToWorker;
 import org.paukov.combinatorics3.Generator;
 import ru.nsu.fit.evdokimova.worker.model.dto.ResponseToManagerFromWorker;
@@ -19,19 +18,15 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static ru.nsu.fit.evdokimova.worker.config.ConstantsWorker.ALPHABET;
-import static ru.nsu.fit.evdokimova.worker.config.RabbitMQWorkerConfig.RESULTS_ROUTING_KEY;
 
 @Service
 @RequiredArgsConstructor
 public class WorkerService {
     private static final Logger log = LoggerFactory.getLogger(WorkerService.class);
 
-    private final RestTemplate restTemplate;
-    private static final String MANAGER_URL = "http://crackhash-manager:8080/internal/api/manager/hash/crack/request";
+    private final RabbitTemplate rabbitTemplate;
 
-    private final AmqpTemplate rabbitTemplate;
-
-    @RabbitListener(queues = "#{workerQueue.name}")
+    @RabbitListener(queues = RabbitWorkerConfig.TASKS_QUEUE)
     public void processTask(RequestFromManagerToWorker request) {
         log.info("Received task: requestId={}, partNumber={}, range: {}-{}",
                 request.getRequestId(), request.getPartNumber(), request.getStartIndex(), request.getEndIndex());
@@ -69,20 +64,22 @@ public class WorkerService {
 
     private void sendResultToManager(String requestId, List<String> words) {
         ResponseToManagerFromWorker response = new ResponseToManagerFromWorker(requestId, words);
+
         try {
-            log.info("Send result to manager: requestId={}, data={}", requestId, words);
-//            HttpHeaders headers = new HttpHeaders();
-//            headers.setContentType(MediaType.APPLICATION_JSON);
-//            HttpEntity<ResponseToManagerFromWorker> entity = new HttpEntity<>(response, headers);
-//
-//            restTemplate.exchange(MANAGER_URL, HttpMethod.PATCH, entity, Void.class);
-
-            rabbitTemplate.convertAndSend(RabbitMQWorkerConfig.TASKS_EXCHANGE, RESULTS_ROUTING_KEY, response);
-
-            log.info("Result has sent to manager: requestId={}", requestId);
+            rabbitTemplate.convertAndSend(
+                    RabbitWorkerConfig.CRACK_HASH_EXCHANGE,
+                    RabbitWorkerConfig.RESULTS_ROUTING_KEY,
+                    response,
+                    m -> {
+                        m.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                        return m;
+                    }
+            );
+            log.info("Sent results for requestId={}, found {} matches",
+                    requestId, words.size());
         } catch (Exception e) {
-            log.error("Error with sending result to manager: {}", e.getMessage());
+            log.error("Failed to send results for requestId={}: {}",
+                    requestId, e.getMessage());
         }
     }
-
 }
