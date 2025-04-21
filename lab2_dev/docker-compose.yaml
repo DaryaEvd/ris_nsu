@@ -18,83 +18,81 @@ services:
       - crackhash-network
 
   mongodb-primary:
-    image: mongo:6.0
+    container_name: mongodb-primary
+    image: mongo:latest
     restart: always
     ports:
-      - "27017:27017"
-    container_name: mongodb-primary
-    command: mongod --replSet rs0 --bind_ip_all
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-      interval: 5s
-      timeout: 30s
-      retries: 10
+      - 27017:27017
+    networks:
+      - crackhash-network
     volumes:
       - mongodata-primary:/data/db
-    networks:
-      - crackhash-network
-
-  mongodb-secondary1:
-    image: mongo:6.0
-    restart: always
-    container_name: mongodb-secondary1
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
     command: mongod --replSet rs0 --bind_ip_all
+
+  mongodb-sec1:
+    container_name: mongodb-sec1
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27018:27017
     depends_on:
       mongodb-primary:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-      interval: 5s
-      timeout: 30s
-      retries: 10
-    volumes:
-      - mongodata-secondary1:/data/db
     networks:
       - crackhash-network
-
-  mongodb-secondary2:
-    image: mongo:6.0
-    restart: always
-    container_name: mongodb-secondary2
+    volumes:
+      - mongodata-sec1:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
     command: mongod --replSet rs0 --bind_ip_all
+#    depends_on:
+#      mongodb-primary:
+#        condition: service_started
+
+  mongodb-sec2:
+    container_name: mongodb-sec2
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27019:27017
     depends_on:
       mongodb-primary:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-      interval: 5s
-      timeout: 30s
-      retries: 10
-    volumes:
-      - mongodata-secondary2:/data/db
     networks:
       - crackhash-network
+    volumes:
+      - mongodata-sec2:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    command: mongod --replSet rs0 --bind_ip_all
+#    depends_on:
+#      mongodb-primary:
+#        condition: service_started
 
   mongo-init:
-    image: mongo:6.0
+    image: mongo:latest
     container_name: mongo-init
     depends_on:
       mongodb-primary:
         condition: service_healthy
-      mongodb-secondary1:
+      mongodb-sec1:
         condition: service_healthy
-      mongodb-secondary2:
+      mongodb-sec2:
         condition: service_healthy
-    restart: on-failure
-    entrypoint: >
-      sh -c "
-      mongosh --host mongodb-primary:27017 --eval '
-        rs.initiate({
-          _id: \"rs0\",
-          members: [
-            { _id: 0, host: \"mongodb-primary:27017\" },
-            { _id: 1, host: \"mongodb-secondary1:27017\" },
-            { _id: 2, host: \"mongodb-secondary2:27017\" }
-          ]
-        })
-      '"
     networks:
       - crackhash-network
+    entrypoint: [ "sh", "-c", "until mongosh --host mongodb-primary --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; do sleep 1; done; mongosh --host mongodb-primary --eval 'rs.initiate({_id: \"rs0\", members: [{ _id: 0, host: \"mongodb-primary:27017\", priority: 2 }, { _id: 1, host: \"mongodb-sec1:27017\" }, { _id: 2, host: \"mongodb-sec2:27017\" }]})'; mongosh --host mongodb-primary --eval 'rs.status()'; mongosh --host mongodb-primary --eval 'while (rs.status().startupStatus || (rs.status().members.some(member => member.stateStr !== \"PRIMARY\" && member.stateStr !== \"SECONDARY\"))) { sleep(1000); }';" ]
 
   manager:
     build:
@@ -106,12 +104,19 @@ services:
     environment:
       - WORKER_COUNT=4
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017/crackhash?replicaSet=rs0&readPreference=primaryPreferred&retryWrites=true&w=majority&authSource=admin
+      - MONGO_INITDB_DATABASE='crackhash_db'
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017/crackhash_db?replicaSet=rs0&readPreference=primaryPreferred
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mongodb-primary:
+        condition: service_started
+      mongodb-sec1:
+        condition: service_started
+      mongodb-sec2:
+        condition: service_started
       mongo-init:
-        condition: service_completed_successfully
+        condition: service_started
     networks:
       - crackhash-network
 
@@ -149,8 +154,8 @@ services:
 
 volumes:
   mongodata-primary:
-  mongodata-secondary1:
-  mongodata-secondary2:
+  mongodata-sec1:
+  mongodata-sec2:
 
 networks:
   crackhash-network:
