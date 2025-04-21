@@ -17,6 +17,85 @@ services:
     networks:
       - crackhash-network
 
+  mongodb-primary:
+    image: mongo:6.0
+    restart: always
+    ports:
+      - "27017:27017"
+    container_name: mongodb-primary
+    command: mongod --replSet rs0 --bind_ip_all
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+    volumes:
+      - mongodata-primary:/data/db
+    networks:
+      - crackhash-network
+
+  mongodb-secondary1:
+    image: mongo:6.0
+    restart: always
+    container_name: mongodb-secondary1
+    command: mongod --replSet rs0 --bind_ip_all
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+    volumes:
+      - mongodata-secondary1:/data/db
+    networks:
+      - crackhash-network
+
+  mongodb-secondary2:
+    image: mongo:6.0
+    restart: always
+    container_name: mongodb-secondary2
+    command: mongod --replSet rs0 --bind_ip_all
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+    volumes:
+      - mongodata-secondary2:/data/db
+    networks:
+      - crackhash-network
+
+  mongo-init:
+    image: mongo:6.0
+    container_name: mongo-init
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      mongodb-secondary1:
+        condition: service_healthy
+      mongodb-secondary2:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: >
+      sh -c "
+      mongosh --host mongodb-primary:27017 --eval '
+        rs.initiate({
+          _id: \"rs0\",
+          members: [
+            { _id: 0, host: \"mongodb-primary:27017\" },
+            { _id: 1, host: \"mongodb-secondary1:27017\" },
+            { _id: 2, host: \"mongodb-secondary2:27017\" }
+          ]
+        })
+      '"
+    networks:
+      - crackhash-network
+
   manager:
     build:
       context: ./manager
@@ -27,9 +106,12 @@ services:
     environment:
       - WORKER_COUNT=4
       - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017/crackhash?replicaSet=rs0&readPreference=primaryPreferred&retryWrites=true&w=majority&authSource=admin
     depends_on:
       rabbitmq:
         condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
     networks:
       - crackhash-network
 
@@ -65,90 +147,11 @@ services:
     networks:
       - crackhash-network
 
-  worker3:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile
-    container_name: crackhash-worker-3
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8083:8083"
-    environment:
-      - WORKER_PORT=8083
-      - SPRING_RABBITMQ_HOST=rabbitmq
-    networks:
-      - crackhash-network
-
-  worker4:
-    build:
-      context: ./worker
-      dockerfile: Dockerfile
-    container_name: crackhash-worker-4
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8084:8084"
-    environment:
-      - WORKER_PORT=8084
-      - SPRING_RABBITMQ_HOST=rabbitmq
-    networks:
-      - crackhash-network
-
-
-#  worker5:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-5
-#    ports:
-#      - "8085:8085"
-#    environment:
-#      - WORKER_PORT=8085
-#    networks:
-#      - crackhash-network
-#
-#  worker6:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-6
-#    ports:
-#      - "8086:8086"
-#    environment:
-#      - WORKER_PORT=8086
-#    networks:
-#      - crackhash-network
-#
-#  worker7:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-7
-#    ports:
-#      - "8087:8087"
-#    environment:
-#      - WORKER_PORT=8087
-#    networks:
-#      - crackhash-network
-#
-#  worker8:
-#    build:
-#      context: ./worker
-#      dockerfile: Dockerfile
-#    container_name: crackhash-worker-8
-#    ports:
-#      - "8088:8088"
-#    environment:
-#      - WORKER_PORT=8088
-#    networks:
-#      - crackhash-network
+volumes:
+  mongodata-primary:
+  mongodata-secondary1:
+  mongodata-secondary2:
 
 networks:
   crackhash-network:
     driver: bridge
-
-#volumes:
-#  mongo_data:
