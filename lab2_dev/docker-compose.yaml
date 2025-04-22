@@ -9,6 +9,7 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
       RABBITMQ_DEFAULT_VHOST: /
+#      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit enable_confirm_external"
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 5s

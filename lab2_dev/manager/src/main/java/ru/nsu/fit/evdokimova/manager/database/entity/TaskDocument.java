@@ -6,10 +6,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.MongoId;
+import org.springframework.data.mongodb.core.mapping.Field;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 import ru.nsu.fit.evdokimova.manager.model.StatusWork;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Document(collection = "tasks")
@@ -27,6 +29,7 @@ public class TaskDocument {
     private int completedParts;
     private String hash;
     private Integer maxLength;
-    private boolean sentToQueue;
-    private List<RequestFromManagerToWorker> pendingTasks;
+
+    @Field("pending_tasks")
+    private List<PendingTask> pendingTasks = new ArrayList<>();
 }
