@@ -10,6 +10,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import ru.nsu.fit.evdokimova.manager.config.RabbitManagerConfig;
+import ru.nsu.fit.evdokimova.manager.database.entity.PendingTaskDocument;
+import ru.nsu.fit.evdokimova.manager.database.entity.TaskDocument;
+import ru.nsu.fit.evdokimova.manager.database.repository.PendingTaskRepository;
+import ru.nsu.fit.evdokimova.manager.database.repository.TaskRepository;
 import ru.nsu.fit.evdokimova.manager.model.CrackRequestData;
 import ru.nsu.fit.evdokimova.manager.model.RequestFromManagerToWorker;
 import ru.nsu.fit.evdokimova.manager.model.ResponseToManagerFromWorker;
@@ -29,11 +33,14 @@ public class CrackHashManagerService {
     private final TaskDistributorService taskDistributorService;
     private final RabbitTemplate rabbitTemplate;
 
+    private final TaskRepository taskRepository;
+    private final PendingTaskRepository pendingTaskRepository;
+
     @Value("${worker.count}")
     private int workerCount;
 
-    private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
-    private final Queue<RequestFromManagerToWorker> taskQueue = new ConcurrentLinkedQueue<>();
+//    private final Map<String, CrackRequestData> requestStorage = new ConcurrentHashMap<>();
+//    private final Queue<RequestFromManagerToWorker> taskQueue = new ConcurrentLinkedQueue<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public ResponseForCrackToClient createCrackRequest(RequestForCrackFromClient request) {
@@ -41,8 +48,21 @@ public class CrackHashManagerService {
         log.info("New request: hash={}, maxLength={}, requestId={}",
                 request.getHash(), request.getMaxLength(), requestId);
 
-        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
-                new CopyOnWriteArrayList<>(), 0, 0));
+        TaskDocument taskDocument = new TaskDocument();
+        taskDocument.setRequestId(requestId);
+        taskDocument.setStatus(StatusWork.IN_PROGRESS);
+        taskDocument.setData(new ArrayList<>());
+        taskDocument.setCompletedParts(0);
+        taskDocument.setHash(request.getHash());
+        taskDocument.setMaxLength(request.getMaxLength());
+        taskDocument.setSentToQueue(false);
+        taskDocument.setPendingTasks(new ArrayList<>());
+
+        taskDocument = taskRepository.save(taskDocument);
+        log.info("Task saved to MongoDB: {}", taskDocument);
+
+//        requestStorage.put(requestId, new CrackRequestData(StatusWork.IN_PROGRESS,
+//                new CopyOnWriteArrayList<>(), 0, 0));
 
         executorService.submit(() -> processCrackRequest(requestId, request));
 
@@ -54,12 +74,16 @@ public class CrackHashManagerService {
         int partNumber = taskDistributorService.determinePartNumber(totalPermutations, workerCount);
         log.info("Total permutations number: {}, parts: {}", totalPermutations, partNumber);
 
-        CrackRequestData requestData = requestStorage.get(requestId);
-        if (requestData != null) {
-            requestData.setExpectedParts(partNumber);
-        } else {
-            log.error("Error: requestData not found for requestId={}", requestId);
-        }
+        taskRepository.findByRequestId(requestId).ifPresent(taskDocument -> {
+            taskDocument.setExpectedParts(partNumber);
+            taskRepository.save(taskDocument);
+        });
+//        CrackRequestData requestData = requestStorage.get(requestId);
+//        if (requestData != null) {
+//            requestData.setExpectedParts(partNumber);
+//        } else {
+//            log.error("Error: requestData not found for requestId={}", requestId);
+//        }
 
         taskDistributorService.divideTask(
                 requestId, request.getHash(), request.getMaxLength(), totalPermutations, partNumber,
@@ -83,54 +107,115 @@ public class CrackHashManagerService {
                         return m;
                     }
                 );
+
+                taskRepository.findByRequestId(task.getRequestId()).ifPresent(taskDocument -> {
+                    taskDocument.setSentToQueue(true);
+                    taskRepository.save(taskDocument);
+                });
+
             } catch (Exception e) {
                 log.error("Error sending task to RabbitMQ: {}", e.getMessage());
-                taskQueue.add(task);
+
+                // Save failed task to MongoDB
+                PendingTaskDocument pendingTask = new PendingTaskDocument();
+                pendingTask.setTask(task);
+                pendingTask.setCreatedAt(new Date());
+                pendingTaskRepository.save(pendingTask);
+
+                // Also add to the task document
+                taskRepository.findByRequestId(task.getRequestId()).ifPresent(taskDocument -> {
+                    taskDocument.getPendingTasks().add(task);
+                    taskRepository.save(taskDocument);
+                });
             }
         });
     }
 
     @RabbitListener(queues = RabbitManagerConfig.RESULTS_QUEUE)
     public void processWorkerResponse(ResponseToManagerFromWorker response) {
-        CrackRequestData requestData = requestStorage.get(response.getRequestId());
-        if (requestData == null) return;
+        Optional<TaskDocument> taskOpt = taskRepository.findByRequestId(response.getRequestId());
+        if (taskOpt.isEmpty()) return;
 
+        TaskDocument taskDocument = taskOpt.get();
         log.info("Worker sent result requestId={} -> {}", response.getRequestId(), response.getData());
-        requestData.getData().addAll(response.getData());
 
-        synchronized (requestData) {
-            requestData.incrementCompletedParts();
-            log.info("Processed {} / {} parts for requestId={}", requestData.getCompletedParts(), requestData.getExpectedParts(), response.getRequestId());
+        List<String> currentData = taskDocument.getData();
+        if (currentData == null) {
+            currentData = new ArrayList<>();
+        }
+        currentData.addAll(response.getData());
+        taskDocument.setData(currentData);
 
-            if (requestData.getCompletedParts() >= requestData.getExpectedParts()) {
-                requestData.setStatus(StatusWork.READY);
+        synchronized (taskDocument) {
+            taskDocument.setCompletedParts(taskDocument.getCompletedParts() + 1);
+            log.info("Processed {} / {} parts for requestId={}",
+                    taskDocument.getCompletedParts(),
+                    taskDocument.getExpectedParts(),
+                    response.getRequestId());
+
+            if (taskDocument.getCompletedParts() >= taskDocument.getExpectedParts()) {
+                taskDocument.setStatus(StatusWork.READY);
                 log.info("Request {} finished, status: READY", response.getRequestId());
             }
+
+            taskRepository.save(taskDocument);
         }
     }
 
     @Scheduled(fixedRate = 5000)
     private void retryFailedTasks() {
-        if (taskQueue.isEmpty()) return;
+        // Get pending tasks from MongoDB
+        List<PendingTaskDocument> pendingTasks = pendingTaskRepository.findAllByOrderByCreatedAtAsc();
+        if (pendingTasks.isEmpty()) return;
 
-        log.info("Resend {} tasks", taskQueue.size());
-        List<RequestFromManagerToWorker> tasksToRetry = new ArrayList<>(taskQueue);
-        taskQueue.clear();
-        tasksToRetry.forEach(this::assignTaskToWorker);
+        log.info("Resending {} pending tasks", pendingTasks.size());
+
+        for (PendingTaskDocument pendingTask : pendingTasks) {
+            try {
+                RequestFromManagerToWorker task = pendingTask.getTask();
+                log.info("Resending task: requestId={}, part={}",
+                        task.getRequestId(), task.getPartNumber());
+
+                rabbitTemplate.convertAndSend(
+                        RabbitManagerConfig.CRACK_HASH_EXCHANGE,
+                        RabbitManagerConfig.TASKS_ROUTING_KEY,
+                        task,
+                        m -> {
+                            m.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                            return m;
+                        }
+                );
+
+                // Remove from pending tasks if sent successfully
+                pendingTaskRepository.delete(pendingTask);
+
+                // Update main task document
+                taskRepository.findByRequestId(task.getRequestId()).ifPresent(taskDocument -> {
+                    taskDocument.getPendingTasks().removeIf(t ->
+                            t.getPartNumber() == task.getPartNumber());
+                    taskRepository.save(taskDocument);
+                });
+            } catch (Exception e) {
+                log.error("Failed to resend task: {}", e.getMessage());
+            }
+        }
     }
 
     public ResponseRequestIdToClient getCrackStatus(String requestId) {
-        CrackRequestData requestData = requestStorage.get(requestId);
-        if (requestData == null) {
+        Optional<TaskDocument> taskOpt = taskRepository.findByRequestId(requestId);
+        if (taskOpt.isEmpty()) {
             log.warn("Request {} not found in storage", requestId);
             return new ResponseRequestIdToClient(StatusWork.ERROR, null);
         }
 
+        TaskDocument taskDocument = taskOpt.get();
         log.info("Request {}: status={}, found words={}",
-                requestId, requestData.getStatus(), requestData.getData());
-        return new ResponseRequestIdToClient(requestData.getStatus(), new ArrayList<>(requestData.getData()));
-    }
+                requestId, taskDocument.getStatus(), taskDocument.getData());
 
+        return new ResponseRequestIdToClient(
+                taskDocument.getStatus(),
+                new ArrayList<>(taskDocument.getData()));
+    }
 
     /*
     private static final Logger log = LoggerFactory.getLogger(CrackHashManagerService.class);
