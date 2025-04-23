@@ -42,14 +42,14 @@ public class WorkerService {
             List<String> foundWords = findWords(request);
             sendResultToManager(request.getRequestId(), foundWords);
 
-            channel.basicAck(tag, false);
+            channel.basicAck(tag, false); //тут подтверждаем только конкретноее соо с тегом
             log.info("Task processed and acknowledged: requestId={}, part={}",
                     request.getRequestId(), request.getPartNumber());
         } catch (Exception e) {
             log.error("Error processing task: requestId={}, part={}, error: {}",
                     request.getRequestId(), request.getPartNumber(), e.getMessage());
 
-            channel.basicNack(tag, false, true);
+            channel.basicNack(tag, false, true);  // тут отказ от конкретного соо, кот. вернуть обработ в очередь надо
         }
     }
 

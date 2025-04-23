@@ -9,6 +9,8 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
       RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
 #      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit enable_confirm_external"
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
@@ -100,7 +102,7 @@ services:
       - WORKER_COUNT=4
       - SPRING_RABBITMQ_HOST=rabbitmq
       - MONGO_INITDB_DATABASE='crackhash_db'
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017/crackhash_db?replicaSet=rs0&readPreference=primaryPreferred
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017,mongodb-sec1:27017,mongodb-sec2:27017/crackhash_db?replicaSet=rs0&w=majority&wtimeoutMS=5000&readPreference=primaryPreferred
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -151,6 +153,7 @@ volumes:
   mongodata-primary:
   mongodata-sec1:
   mongodata-sec2:
+  rabbitmq-data:
 
 networks:
   crackhash-network:

@@ -85,6 +85,7 @@ public class CrackHashManagerService {
     private void assignTaskToWorker(RequestFromManagerToWorker task) {
         executorService.submit(() -> {
             try {
+                CorrelationData correlationData = new CorrelationData(task.getRequestId() + "-" + task.getPartNumber());
                 rabbitTemplate.convertAndSend(
                         RabbitManagerConfig.CRACK_HASH_EXCHANGE,
                         RabbitManagerConfig.TASKS_ROUTING_KEY,
@@ -92,13 +93,26 @@ public class CrackHashManagerService {
                         m -> {
                             m.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
                             return m;
-                        }
+                        },
+                        correlationData
                 );
-                log.info("Task sent to queue: requestId={}, part={}",
-                        task.getRequestId(), task.getPartNumber());
+                if (correlationData.getFuture().get(5, TimeUnit.SECONDS).isAck()) {
+                    taskRepository.findByRequestId(task.getRequestId()).ifPresent(td -> {
+                        td.getPendingTasks().removeIf(pt ->
+                                pt.getTask().getPartNumber() == task.getPartNumber());
+                        taskRepository.save(td);
+                    });
+                } else {
+                    throw new RuntimeException("Broker rejected message");
+                }
             } catch (Exception e) {
-                log.error("Error sending task to queue: requestId={}, part={}",
-                        task.getRequestId(), task.getPartNumber());
+                log.error("Error sending task to queue. Saving to DB: {}", e.getMessage());
+
+                taskRepository.findByRequestId(task.getRequestId()).ifPresent(taskDocument -> {
+                    PendingTask pendingTask = new PendingTask(task, new Date());
+                    taskDocument.getPendingTasks().add(pendingTask);
+                    taskRepository.save(taskDocument);
+                });
             }
         });
     }
@@ -138,12 +152,12 @@ public class CrackHashManagerService {
                 }
 
                 taskRepository.save(taskDocument);
-                channel.basicAck(tag, false); // Подтверждаем успешную обработку
+                channel.basicAck(tag, false);
             }
         }
         catch (Exception e){
             log.error("Error processing worker response: {}", e.getMessage());
-            channel.basicNack(tag, false, true); // Возвращаем в очередь при ошибке
+            channel.basicNack(tag, false, true);
         }
 
     }
