@@ -1,0 +1,191 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    hostname: rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+    networks:
+      - crackhash-network
+
+  mongodb-primary:
+    container_name: mongodb-primary
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27017:27017
+    networks:
+      - crackhash-network
+    volumes:
+      - mongodata-primary:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    command: mongod --replSet rs0 --bind_ip_all
+
+  mongodb-sec1:
+    container_name: mongodb-sec1
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27018:27017
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - crackhash-network
+    volumes:
+      - mongodata-sec1:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    command: mongod --replSet rs0 --bind_ip_all
+
+  mongodb-sec2:
+    container_name: mongodb-sec2
+    image: mongo:latest
+    restart: always
+    ports:
+      - 27019:27017
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - crackhash-network
+    volumes:
+      - mongodata-sec2:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    command: mongod --replSet rs0 --bind_ip_all
+
+  mongo-init:
+    image: mongo:latest
+    container_name: mongo-init
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      mongodb-sec1:
+        condition: service_healthy
+      mongodb-sec2:
+        condition: service_healthy
+    networks:
+      - crackhash-network
+    entrypoint: [ "sh", "-c", "until mongosh --host mongodb-primary --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; do sleep 1; done; mongosh --host mongodb-primary --eval 'rs.initiate({_id: \"rs0\", members: [{ _id: 0, host: \"mongodb-primary:27017\", priority: 2 }, { _id: 1, host: \"mongodb-sec1:27017\" }, { _id: 2, host: \"mongodb-sec2:27017\" }]})'; mongosh --host mongodb-primary --eval 'rs.status()'; mongosh --host mongodb-primary --eval 'while (rs.status().startupStatus || (rs.status().members.some(member => member.stateStr !== \"PRIMARY\" && member.stateStr !== \"SECONDARY\"))) { sleep(1000); }';" ]
+
+  manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: crackhash-manager
+    ports:
+      - "8080:8080"
+    environment:
+      - WORKER_COUNT=4
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - MONGO_INITDB_DATABASE='crackhash_db'
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-primary:27017,mongodb-sec1:27017,mongodb-sec2:27017/crackhash_db?replicaSet=rs0&w=majority&wtimeoutMS=5000&readPreference=primaryPreferred
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongodb-primary:
+        condition: service_started
+      mongodb-sec1:
+        condition: service_started
+      mongodb-sec2:
+        condition: service_started
+      mongo-init:
+        condition: service_started
+    networks:
+      - crackhash-network
+
+  worker1:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      - WORKER_PORT=8081
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - crackhash-network
+
+  worker2:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    environment:
+      - WORKER_PORT=8082
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - crackhash-network
+
+  worker3:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-3
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      - WORKER_PORT=8083
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - crackhash-network
+
+  worker4:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: crackhash-worker-4
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    environment:
+      - WORKER_PORT=8084
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - crackhash-network
+
+volumes:
+  mongodata-primary:
+  mongodata-sec1:
+  mongodata-sec2:
+  rabbitmq-data:
+
+networks:
+  crackhash-network:
+    driver: bridge
