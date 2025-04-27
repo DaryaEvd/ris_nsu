@@ -77,3 +77,5 @@
 - [статья RabbitMQ: терминология и базовые сущности](https://habr.com/ru/companies/slurm/articles/703060/)
 - [про exchanges в rabbit](https://habr.com/ru/articles/489086/)
 - [про AMQ статья](http://onreader.mdl.ru/RabbitMQInDepth/content/Ch02.html)
+- [ссылка на md5-хеш](https://www.md5.cz/) - у меня просто на каком-то сайте хеш неправильно считался(( тут все ок.  
+
